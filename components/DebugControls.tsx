@@ -148,6 +148,43 @@ export const DebugControls: React.FC = () => {
         setFocusId('mega_1');
     };
 
+    const loadChaosDemo = () => {
+        const data: any = {
+            version: 2,
+            focusId: 'ana',
+            people: {
+                'lucas': { name: 'LUCAS', surnames: 'BRANCH A', gender: 'Male' },
+                'marta': { name: 'MARTA', surnames: 'BRANCH A', gender: 'Female' },
+                'juan': { name: 'JUAN', surnames: 'BRANCH A', gender: 'Male' },
+                'partner-x': { name: 'PAREJA X', surnames: 'EXTERNO', gender: 'Female' },
+                'julia-jr': { name: 'JULIA JR', surnames: 'BRANCH A', gender: 'Female' },
+
+                'marcelo': { name: 'MARCELO', surnames: 'BRANCH B', gender: 'Male' },
+                'julia-m': { name: 'JULIA M', surnames: 'BRANCH B', gender: 'Female' },
+                'ana': { name: 'ANA', surnames: 'BRANCH B', gender: 'Female' },
+                'roberto': { name: 'ROBERTO', surnames: 'ANA PARTNER 1', gender: 'Male' },
+                'carlos': { name: 'CARLOS', surnames: 'ANA PARTNER 2', gender: 'Male' },
+                'son-z-ana': { name: 'SON Z', surnames: 'ANA BRANCH', gender: 'Male' },
+            },
+            relationships: {
+                'lucas': { parents: [], partners: ['marta'], children: ['juan'], siblings: [] },
+                'marta': { parents: [], partners: ['lucas'], children: ['juan'], siblings: [] },
+                'juan': { parents: ['lucas', 'marta'], partners: ['partner-x'], children: ['julia-jr'], siblings: [] },
+                'partner-x': { parents: [], partners: ['juan'], children: ['julia-jr'], siblings: [] },
+                'julia-jr': { parents: ['juan', 'partner-x'], partners: ['son-z-ana'], children: [], siblings: [] },
+
+                'marcelo': { parents: [], partners: ['julia-m'], children: ['ana'], siblings: [] },
+                'julia-m': { parents: [], partners: ['marcelo'], children: ['ana'], siblings: [] },
+                'ana': { parents: ['marcelo', 'julia-m'], partners: ['roberto', 'carlos'], children: ['son-z-ana'], siblings: [] },
+                'roberto': { parents: [], partners: ['ana'], children: ['son-z-ana'], siblings: [] },
+                'carlos': { parents: [], partners: ['ana'], children: [], siblings: [] },
+                'son-z-ana': { parents: ['ana', 'roberto'], partners: ['julia-jr'], children: [], siblings: [] },
+            }
+        };
+        importRelationships(data);
+        setFocusId('ana');
+    };
+
     const clearTree = () => {
         importRelationships({ version: 2, relationships: {} } as any);
     };
@@ -165,6 +202,12 @@ export const DebugControls: React.FC = () => {
                 className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold py-2 px-4 rounded-full shadow-lg transition-all"
             >
                 🌌 Mega Familia
+            </button>
+            <button
+                onClick={loadChaosDemo}
+                className="bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold py-2 px-4 rounded-full shadow-lg transition-all"
+            >
+                🌀 Caso Enrevesado
             </button>
             <button
                 onClick={loadDemoFamily}

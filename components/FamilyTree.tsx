@@ -263,7 +263,10 @@ export const FamilyTree: React.FC = () => {
         // Añadir pareja(s) (sin añadir el foco ni el otro root)
         const partners = partnersById.get(pid) || [];
         partners.forEach(partnerId => {
-          if (!out.has(partnerId) && partnerId !== focusId && partnerId !== otherRootId) out.add(partnerId);
+          if (!out.has(partnerId) && partnerId !== focusId && partnerId !== otherRootId) {
+            out.add(partnerId);
+            q.push(partnerId); // EXPLORAR RAMA PAREJA (NUEVO)
+          }
         });
 
         // Añadir co-padres (personas que comparten el mismo hijo aunque no estén en partners)
@@ -408,6 +411,26 @@ export const FamilyTree: React.FC = () => {
 
       if (item.gen === 0 && rel === 'PartnerSibling') return 'left';
       if (item.gen === 0 && rel === 'Sibling') return 'right';
+
+      // SESGO PROACTIVO (NUEVO): Si un miembro de una pareja tiene hijos que casan con el "Left branch",
+      // mover esa pareja hacia la izquierda para evitar cruces.
+      if (item.kind === 'couple') {
+        const p1Id = item.person1Id;
+        const p2Id = item.person2Id;
+        const p1Data = familyById.get(p1Id);
+        const p2Data = familyById.get(p2Id);
+
+        const hasChildInLeft = (pId: string) => {
+          const children = childrenById.get(pId) || [];
+          return children.some(cid => {
+            const childPartners = partnersById.get(cid) || [];
+            return childPartners.some(cp => leftFamily.has(cp));
+          });
+        };
+
+        if (hasChildInLeft(p1Id!) || hasChildInLeft(p2Id!)) return 'left';
+      }
+
       return sideOfItem(item);
     };
 
