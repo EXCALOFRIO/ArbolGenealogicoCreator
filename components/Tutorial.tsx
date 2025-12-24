@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTutorial, TutorialStep } from '../hooks/useTutorial';
 import { useFamilyStore } from '../store/familyStore';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const STEP_CONFIG: Record<TutorialStep, {
   title: string;
@@ -62,6 +63,10 @@ const FORM_STEPS: TutorialStep[] = ['enter-surname', 'confirm-person'];
 export const Tutorial: React.FC = () => {
   const { isActive, currentStep, skipTutorial, nextStep, hasCompletedOnce, goToStep } = useTutorial();
   const { people, isModalOpen, modalContext } = useFamilyStore();
+  const isMobile = useIsMobile();
+
+  // No mostrar tutorial en móviles
+  if (isMobile) return null;
   
   // Estado para posiciones de elementos
   const [positions, setPositions] = useState<{

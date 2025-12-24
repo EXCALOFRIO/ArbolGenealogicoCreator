@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useFamilyStore } from '../store/familyStore';
 import { useTutorial } from '../hooks/useTutorial';
 import { RelationContext } from '../types';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 type ActionType = 'add' | 'edit' | 'delete' | 'export' | 'import';
 
@@ -78,6 +79,7 @@ const SparkleIcon = () => (
 export const ActionMenu: React.FC = () => {
   const { focusId, people, getPerson, openAddModal, openEditModal, deletePerson, exportRelationships, importRelationships } = useFamilyStore();
   const { startTutorial, hasCompletedOnce } = useTutorial();
+  const isMobile = useIsMobile();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -159,8 +161,8 @@ export const ActionMenu: React.FC = () => {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     openAddModal('None');
-                    // Iniciar tutorial solo la primera vez
-                    if (!hasCompletedOnce) {
+                    // Iniciar tutorial solo la primera vez y no en móvil
+                    if (!hasCompletedOnce && !isMobile) {
                       startTutorial();
                     }
                   }}

@@ -191,19 +191,19 @@ export const useFamilyLogic = () => {
     people.forEach(person => {
       if (person.id === focusId) return;
       if (visited.has(person.id)) return;
-      
+
       if ((person.siblings || []).includes(focusId)) {
         addNode(person, 0, 'Sibling');
         return;
       }
-      
+
       // Verificar si esta persona comparte al menos un padre conmigo
       const sharesParent = person.parents.some(pid => focusPerson.parents.includes(pid));
       if (sharesParent) {
         addNode(person, 0, 'Sibling');
         return;
       }
-      
+
       // Verificar si alguno de los padres de esta persona me tiene como hijo
       const theirParents = person.parents.map(pid => getPerson(pid)).filter((p): p is Person => !!p);
       const imTheirSibling = theirParents.some(parent => parent.children.includes(focusId));
@@ -243,6 +243,25 @@ export const useFamilyLogic = () => {
           const partner = getPerson(partnerId);
           if (partner) {
             addNode(partner, 1, 'ChildPartner');
+
+            // 11b. Padres de la pareja del hijo (Consuegros) - Generación -1 (o misma que mis padres)
+            partner.parents.forEach(parentInLawId => {
+              const pil = getPerson(parentInLawId);
+              if (pil) addNode(pil, -1, pil.gender === 'Male' ? 'CoInLaw' : 'CoInLaw');
+            });
+
+            // Inferir el otro progenitor si no está en parents
+            partner.parents.forEach(pilId => {
+              const pil = getPerson(pilId);
+              if (pil) {
+                pil.partners.forEach(spouseId => {
+                  const spouse = getPerson(spouseId);
+                  if (spouse && (pil.children.includes(partnerId) || spouse.children.includes(partnerId))) {
+                    addNode(spouse, -1, spouse.gender === 'Male' ? 'CoInLaw' : 'CoInLaw');
+                  }
+                });
+              }
+            });
           }
         });
       }
@@ -323,12 +342,12 @@ export const useFamilyLogic = () => {
 
     // Recopilar todos los hijos de tíos y sus parejas
     const cousinCandidates = new Set<string>();
-    
+
     [...uncles, ...unclePartners].forEach(uncleOrPartner => {
       (uncleOrPartner.children || []).forEach(cousinId => {
         cousinCandidates.add(cousinId);
       });
-      
+
       // También añadir hijos de la pareja (por si los hijos solo están en uno de los dos)
       (uncleOrPartner.partners || []).forEach(partnerId => {
         const partner = getPerson(partnerId);

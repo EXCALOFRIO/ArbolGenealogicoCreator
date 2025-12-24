@@ -18,7 +18,7 @@ const FlowContent: React.FC<{ nodes: Node[]; edges: Edge[]; focusId: string }> =
   useEffect(() => {
     if (focusId !== prevFocusId.current) {
       prevFocusId.current = focusId;
-      
+
       // Buscar el nodo que contiene al focus (puede ser un couple o person)
       const focusNode = nodes.find(n => {
         if (n.id === focusId) return true;
@@ -33,7 +33,7 @@ const FlowContent: React.FC<{ nodes: Node[]; edges: Edge[]; focusId: string }> =
         const nodeHeight = 140;
         const centerX = focusNode.position.x + nodeWidth / 2;
         const centerY = focusNode.position.y + nodeHeight / 2;
-        
+
         setTimeout(() => {
           setCenter(centerX, centerY, { duration: 500, zoom: 0.9 });
         }, 100);
@@ -47,12 +47,13 @@ const FlowContent: React.FC<{ nodes: Node[]; edges: Edge[]; focusId: string }> =
 export const FamilyTree: React.FC = () => {
   const familyNodes = useFamilyLogic();
   const { focusId } = useFamilyStore();
-  
+  const { fitView } = useReactFlow();
+
   // Detectar móvil para ajustar tamaños
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 640 : false
   );
-  
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 640);
     window.addEventListener('resize', handleResize);
@@ -64,7 +65,7 @@ export const FamilyTree: React.FC = () => {
     const flowEdges: Edge[] = [];
     const processedCouples = new Set<string>();
     const nodePositions = new Map<string, { x: number; y: number; width: number }>();
-    
+
     // 1. Agrupar por generación
     const byGen: Record<number, any[]> = {};
     familyNodes.forEach(n => {
@@ -75,7 +76,7 @@ export const FamilyTree: React.FC = () => {
     // Tamaños responsivos
     const COUPLE_WIDTH = isMobile ? 200 : 320;
     const SINGLE_WIDTH = isMobile ? 100 : 160;
-    const HORIZONTAL_GAP = isMobile ? 40 : 80;
+    const HORIZONTAL_GAP = isMobile ? 60 : 120; // Aumentado para evitar apretujamiento
     const VERTICAL_SPACING = isMobile ? 160 : 220;
 
     // Normaliza una pareja de padres a una clave estable
@@ -111,9 +112,26 @@ export const FamilyTree: React.FC = () => {
       members.forEach(member => {
         if (processed.has(member.id)) return;
 
-        const partnerInGen = member.partners.find((pId: string) =>
+        // Buscar pareja declarada
+        let partnerInGen = member.partners.find((pId: string) =>
           members.some(m => m.id === pId) && !processed.has(pId)
         );
+
+        // Si no hay pareja declarada, inferir co-padre/madre (comparten el mismo hijo)
+        if (!partnerInGen && member.children && member.children.length > 0) {
+          for (const childId of member.children) {
+            const coParent = members.find(m =>
+              m.id !== member.id &&
+              !processed.has(m.id) &&
+              m.children?.includes(childId)
+            );
+            if (coParent) {
+              partnerInGen = coParent.id;
+              break;
+            }
+          }
+        }
+
         const partner = partnerInGen ? members.find(m => m.id === partnerInGen) : null;
 
         if (partner) {
@@ -247,6 +265,19 @@ export const FamilyTree: React.FC = () => {
         partners.forEach(partnerId => {
           if (!out.has(partnerId) && partnerId !== focusId && partnerId !== otherRootId) out.add(partnerId);
         });
+
+        // Añadir co-padres (personas que comparten el mismo hijo aunque no estén en partners)
+        const children = childrenById.get(pid) || [];
+        children.forEach(childId => {
+          familyNodes.forEach(otherPerson => {
+            if (otherPerson.id === pid) return;
+            if (otherPerson.id === focusId || otherPerson.id === otherRootId) return;
+            if (otherPerson.children?.includes(childId) && !out.has(otherPerson.id)) {
+              out.add(otherPerson.id);
+            }
+          });
+        });
+
         // Subir a padres
         const parents = parentsById.get(pid) || [];
         parents.forEach(parentId => {
@@ -289,6 +320,15 @@ export const FamilyTree: React.FC = () => {
               sibChildren.forEach(sc => { if (!out.has(sc) && sc !== focusId) out.add(sc); });
             }
           });
+        });
+
+        // DESCENDIENTES (NUEVO: Importante para primos/sobrinos)
+        const personChildren = childrenById.get(pid) || [];
+        personChildren.forEach(childId => {
+          if (childId !== focusId && !out.has(childId)) {
+            out.add(childId);
+            q.push(childId);
+          }
         });
       }
       return out;
@@ -395,7 +435,7 @@ export const FamilyTree: React.FC = () => {
 
     const ensureCoupleOrderByParents = (item: NodeItem) => {
       if (item.kind !== 'couple') return;
-      
+
       const p1Id = item.person1Id;
       const p2Id = item.person2Id;
       if (!p1Id || !p2Id) return;
@@ -525,7 +565,34 @@ export const FamilyTree: React.FC = () => {
       const desired: { id: string; width: number; desiredLeft: number }[] = [];
 
       // A) Grupos centrados bajo padres
-      groups.forEach((items, key) => {
+      // Nuevo: Ordenar las claves de los grupos por la posición X de los padres
+      const sortedGroupKeys = Array.from(groups.keys()).sort((keyA, keyB) => {
+        let centerA = 0;
+        let centerB = 0;
+
+        if (keyA.startsWith('single:')) {
+          const pid = keyA.replace('single:', '');
+          const containerId = personToContainer.get(pid);
+          if (containerId) centerA = getNodeCenter(containerId) || 0;
+        } else {
+          const [pa, pb] = keyA.split('|');
+          centerA = getParentCoupleCenter([pa, pb]) || 0;
+        }
+
+        if (keyB.startsWith('single:')) {
+          const pid = keyB.replace('single:', '');
+          const containerId = personToContainer.get(pid);
+          if (containerId) centerB = getNodeCenter(containerId) || 0;
+        } else {
+          const [pa, pb] = keyB.split('|');
+          centerB = getParentCoupleCenter([pa, pb]) || 0;
+        }
+
+        return centerA - centerB;
+      });
+
+      sortedGroupKeys.forEach((key) => {
+        const items = groups.get(key)!;
         // anchor center
         let anchorCenter: number | null = null;
         if (key.startsWith('single:')) {
@@ -537,8 +604,7 @@ export const FamilyTree: React.FC = () => {
           anchorCenter = getParentCoupleCenter([a, b]);
         }
         if (anchorCenter == null) {
-          // si estamos en la primera fila, centramos en 0; si no, dejamos 0 y el solver hará el resto
-          anchorCenter = genIdx === 0 ? 0 : 0;
+          anchorCenter = 0;
         }
 
         // Si solo hay un item, centrarlo exactamente bajo los padres
@@ -560,6 +626,15 @@ export const FamilyTree: React.FC = () => {
             if (sideA !== 'left' && sideB === 'left') return 1;
             if (sideA === 'right' && sideB !== 'right') return 1;
             if (sideA !== 'right' && sideB === 'right') return -1;
+
+            // Si el side es igual, usar el bias (importante para hermanos/cuñados)
+            const biasA = biasOfItem(a);
+            const biasB = biasOfItem(b);
+            if (biasA === 'left' && biasB !== 'left') return -1;
+            if (biasA !== 'left' && biasB === 'left') return 1;
+            if (biasA === 'right' && biasB !== 'right') return 1;
+            if (biasA !== 'right' && biasB === 'right') return -1;
+
             return a.id > b.id ? 1 : -1;
           })
           .forEach(it => {
@@ -569,36 +644,43 @@ export const FamilyTree: React.FC = () => {
       });
 
       // B) No agrupados (incluye parejas mixtas): usar reglas por nodo
-      ungrouped.forEach(it => {
-        let desiredLeft = 0;
+      ungrouped
+        .sort((a, b) => {
+          // Ordenar no agrupados por el centro de sus padres para evitar cruces
+          const c1 = a.kind === 'person' ? getParentCoupleCenter(a.personParents) : getParentCoupleCenter(a.p1Parents);
+          const c2 = b.kind === 'person' ? getParentCoupleCenter(b.personParents) : getParentCoupleCenter(b.p1Parents);
+          return (c1 || 0) - (c2 || 0);
+        })
+        .forEach(it => {
+          let desiredLeft = 0;
 
-        if (it.kind === 'person') {
-          const c = getParentCoupleCenter(it.personParents);
-          desiredLeft = c != null ? c - it.width / 2 : 0;
-        } else {
-          // pareja: intentar alinear cada lado con sus suegros
-          const c1 = getParentCoupleCenter(it.p1Parents);
-          const c2 = getParentCoupleCenter(it.p2Parents);
-
-          const has1 = c1 != null && it.person1Id;
-          const has2 = c2 != null && it.person2Id;
-
-          if (has1 && has2 && parentPairKey(it.p1Parents) !== parentPairKey(it.p2Parents)) {
-            // mixto: colocar entre ambos
-            const left1 = (c1 as number) - COUPLE_WIDTH * 0.25;
-            const left2 = (c2 as number) - COUPLE_WIDTH * 0.75;
-            desiredLeft = (left1 + left2) / 2;
-          } else if (has1) {
-            desiredLeft = (c1 as number) - COUPLE_WIDTH * 0.25;
-          } else if (has2) {
-            desiredLeft = (c2 as number) - COUPLE_WIDTH * 0.75;
+          if (it.kind === 'person') {
+            const c = getParentCoupleCenter(it.personParents);
+            desiredLeft = c != null ? c - it.width / 2 : 0;
           } else {
-            desiredLeft = 0;
-          }
-        }
+            // pareja: intentar alinear cada lado con sus suegros
+            const c1 = getParentCoupleCenter(it.p1Parents);
+            const c2 = getParentCoupleCenter(it.p2Parents);
 
-        desired.push({ id: it.id, width: it.width, desiredLeft });
-      });
+            const has1 = c1 != null && it.person1Id;
+            const has2 = c2 != null && it.person2Id;
+
+            if (has1 && has2 && parentPairKey(it.p1Parents) !== parentPairKey(it.p2Parents)) {
+              // mixto: colocar entre ambos
+              const left1 = (c1 as number) - COUPLE_WIDTH * 0.25;
+              const left2 = (c2 as number) - COUPLE_WIDTH * 0.75;
+              desiredLeft = (left1 + left2) / 2;
+            } else if (has1) {
+              desiredLeft = (c1 as number) - COUPLE_WIDTH * 0.25;
+            } else if (has2) {
+              desiredLeft = (c2 as number) - COUPLE_WIDTH * 0.75;
+            } else {
+              desiredLeft = 0;
+            }
+          }
+
+          desired.push({ id: it.id, width: it.width, desiredLeft });
+        });
 
       // Si estamos en la primera fila y todo es 0, distribuir y centrar
       if (genIdx === 0) {
@@ -619,9 +701,9 @@ export const FamilyTree: React.FC = () => {
               return a.id > b.id ? 1 : -1;
             })
             .forEach(d => {
-            d.desiredLeft = x;
-            x += d.width + HORIZONTAL_GAP;
-          });
+              d.desiredLeft = x;
+              x += d.width + HORIZONTAL_GAP;
+            });
         }
       }
 
@@ -686,17 +768,17 @@ export const FamilyTree: React.FC = () => {
 
     // 4. Crear conexiones - evitar duplicados cuando ambos padres de un couple apuntan al mismo hijo
     const addedEdges = new Set<string>();
-    
+
     // Procesar cada persona y sus hijos
     familyNodes.forEach(node => {
       node.children.forEach(childId => {
         // Encontrar el nodo hijo (puede ser individual o parte de una pareja)
         let childNodeId = childId;
         let childNode = flowNodes.find(n => n.id === childId);
-        
+
         if (!childNode) {
-          const coupleWithChild = flowNodes.find(n => 
-            n.type === 'couple' && 
+          const coupleWithChild = flowNodes.find(n =>
+            n.type === 'couple' &&
             (((n.data as any)?.person1?.id === childId) || ((n.data as any)?.person2?.id === childId))
           );
           if (coupleWithChild) {
@@ -704,15 +786,15 @@ export const FamilyTree: React.FC = () => {
             childNodeId = coupleWithChild.id;
           }
         }
-        
+
         if (childNode) {
           // Buscar el nodo padre (puede ser individual o parte de una pareja)
           let parentNodeId = node.id;
           let parentNode = flowNodes.find(n => n.id === node.id);
-          
+
           if (!parentNode) {
-            const coupleWithParent = flowNodes.find(n => 
-              n.type === 'couple' && 
+            const coupleWithParent = flowNodes.find(n =>
+              n.type === 'couple' &&
               (((n.data as any)?.person1?.id === node.id) || ((n.data as any)?.person2?.id === node.id))
             );
             if (coupleWithParent) {
@@ -726,13 +808,22 @@ export const FamilyTree: React.FC = () => {
             const edgeKey = `${parentNodeId}->${childNodeId}`;
             if (!addedEdges.has(edgeKey)) {
               addedEdges.add(edgeKey);
+
+              // Fix: si el hijo es un couple, conectar al handle específico de esa persona (top-ID)
+              // Si no, usar el default (null) que va al top del nodo
+              let targetHandle: string | null = null;
+              if (childNode.type === 'couple') {
+                targetHandle = `top-${childId}`;
+              }
+
               flowEdges.push({
                 id: `edge-${edgeKey}`,
                 source: parentNodeId,
                 target: childNodeId,
+                targetHandle: targetHandle || undefined,
                 type: 'smoothstep',
-                style: { 
-                  stroke: '#64748b', 
+                style: {
+                  stroke: '#64748b',
                   strokeWidth: 2,
                 },
               });
@@ -774,6 +865,19 @@ export const FamilyTree: React.FC = () => {
         <FlowContent nodes={nodes} edges={edges} focusId={focusId} />
         <Background color="#334155" gap={40} size={1} />
       </ReactFlow>
+
+      {/* Floating View Controls */}
+      <div className="fixed bottom-24 left-6 z-50 flex flex-col gap-2">
+        <button
+          onClick={() => fitView({ duration: 800, padding: 0.2 })}
+          className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 p-3 rounded-full text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 shadow-xl transition-all group"
+          title="Centrar árbol"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 };
