@@ -1,8 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFamilyStore } from '../store/familyStore';
 
 export const DebugControls: React.FC = () => {
     const { importRelationships, setFocusId } = useFamilyStore();
+    const [isVisible, setIsVisible] = useState(false);
+
+    // Comando secreto: Ctrl+Shift+D para mostrar/ocultar los controles de debug
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                e.preventDefault();
+                setIsVisible(prev => !prev);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const loadDemoFamily = () => {
         // Escenario: Josefina (Foco) -> Hijo: Rafael. Rafael -> Pareja: Raquel. Raquel -> Padres: Papá/Mamá Raquel (Consuegros)
@@ -189,8 +203,14 @@ export const DebugControls: React.FC = () => {
         importRelationships({ version: 2, relationships: {} } as any);
     };
 
+    // Si no está visible, no renderizar nada
+    if (!isVisible) return null;
+
     return (
         <div className="fixed bottom-24 right-6 flex flex-col gap-2 z-[9999]">
+            <div className="text-xs text-slate-400 text-center mb-1">
+                🔧 Modo Debug (Ctrl+Shift+D)
+            </div>
             <button
                 onClick={loadSuperFamily}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 px-4 rounded-full shadow-lg transition-all"
