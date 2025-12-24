@@ -223,10 +223,12 @@ export const FamilyTree: React.FC = () => {
     const childrenById = new Map<string, string[]>();
     const partnersById = new Map<string, string[]>();
     const parentsById = new Map<string, string[]>();
+    const siblingsById = new Map<string, string[]>();
     familyNodes.forEach(p => {
       childrenById.set(p.id, p.children || []);
       partnersById.set(p.id, p.partners || []);
       parentsById.set(p.id, p.parents || []);
+      siblingsById.set(p.id, (p as any).siblings || []);
     });
 
     // Construir el conjunto de personas que pertenecen a una "rama" familiar
@@ -253,6 +255,27 @@ export const FamilyTree: React.FC = () => {
             q.push(parentId);
           }
         });
+
+        // Hermanos directos (campo siblings) - importante cuando no hay padres
+        const siblings = siblingsById.get(pid) || [];
+        siblings.forEach(sibId => {
+          if (sibId === focusId || sibId === otherRootId) return;
+          if (!out.has(sibId)) {
+            out.add(sibId);
+            q.push(sibId);
+          }
+        });
+
+        // Reverse siblings (por seguridad ante imports viejos)
+        siblingsById.forEach((sibList, otherId) => {
+          if (otherId === pid) return;
+          if (!sibList?.includes(pid)) return;
+          if (otherId === focusId || otherId === otherRootId) return;
+          if (!out.has(otherId)) {
+            out.add(otherId);
+            q.push(otherId);
+          }
+        });
         // Hermanos (hijos de los padres excluyendo foco)
         parents.forEach(parentId => {
           const parentData = familyById.get(parentId);
@@ -275,7 +298,7 @@ export const FamilyTree: React.FC = () => {
     const rightFamily = buildFamilySet(rightRootPersonId, leftRootPersonId);
 
     type FamilySide = 'left' | 'center' | 'right';
-    const sideOfItem = (item: NodeItem): FamilySide => {
+    const sideOfItemBase = (item: NodeItem): FamilySide => {
       if (item.id === focusContainerId) return 'center';
       if (item.members.includes(focusId)) return 'center';
       const inLeft = item.members.some(m => leftFamily.has(m));
@@ -283,6 +306,69 @@ export const FamilyTree: React.FC = () => {
       if (inLeft && !inRight) return 'left';
       if (inRight && !inLeft) return 'right';
       return 'center';
+    };
+
+    const getParentContainerId = (parents: string[] | undefined): string | null => {
+      if (!parents || parents.length === 0) return null;
+      if (parents.length === 2) {
+        const coupleId = [...parents].sort().join('-couple-');
+        if (nodeById.has(coupleId)) return coupleId;
+      }
+      // fallback: usar el primer padre disponible
+      const parentId = parents[0];
+      return personToContainer.get(parentId) || null;
+    };
+
+    // Importante: los hijos deben quedar en el mismo “lado” que sus padres.
+    // Si no, el shift por segmentos (FAMILY_GAP) los descuadra y quedan fuera del centro.
+    const sideCache = new Map<string, FamilySide>();
+    const sideOfItem = (item: NodeItem): FamilySide => {
+      const cached = sideCache.get(item.id);
+      if (cached) return cached;
+
+      let side: FamilySide = sideOfItemBase(item);
+
+      // Mantener hermanos/cuñaados cerca del foco (en el centro), no en ramas separadas.
+      // El orden izquierda/derecha se controla con un “bias” aparte.
+      const relOf = (it: NodeItem): string | null => {
+        const d: any = it.node.data;
+        if (it.kind === 'person') return d?.relationType || null;
+        // couple: si alguno es hermano/cuñado, tomar ese tipo
+        const r1 = d?.person1?.relationType;
+        const r2 = d?.person2?.relationType;
+        return r1 || r2 || null;
+      };
+      const rel = relOf(item);
+      if (item.gen === 0 && (rel === 'Sibling' || rel === 'PartnerSibling')) {
+        side = 'center';
+      }
+
+      if (item.kind === 'person') {
+        const parentContainerId = getParentContainerId(item.personParents);
+        if (parentContainerId && parentContainerId !== item.id) {
+          const parentContainer = nodeById.get(parentContainerId);
+          if (parentContainer) side = sideOfItemBase(parentContainer);
+        }
+      }
+
+      sideCache.set(item.id, side);
+      return side;
+    };
+
+    // Sesgo de orden: cuñados a la izquierda (lado de la pareja), hermanos propios a la derecha.
+    const biasOfItem = (item: NodeItem): FamilySide => {
+      const d: any = item.node.data;
+      const rel = item.kind === 'person'
+        ? d?.relationType
+        : (d?.person1?.relationType === 'PartnerSibling' || d?.person2?.relationType === 'PartnerSibling')
+          ? 'PartnerSibling'
+          : (d?.person1?.relationType === 'Sibling' || d?.person2?.relationType === 'Sibling')
+            ? 'Sibling'
+            : null;
+
+      if (item.gen === 0 && rel === 'PartnerSibling') return 'left';
+      if (item.gen === 0 && rel === 'Sibling') return 'right';
+      return sideOfItem(item);
     };
 
     const getNodeCenter = (nodeId: string): number | null => {
@@ -520,7 +606,19 @@ export const FamilyTree: React.FC = () => {
         if (allZero) {
           const total = desired.reduce((sum, d, i) => sum + d.width + (i > 0 ? HORIZONTAL_GAP : 0), 0);
           let x = -total / 2;
-          desired.sort((a, b) => (a.id > b.id ? 1 : -1)).forEach(d => {
+          desired
+            .sort((a, b) => {
+              const ia = nodeById.get(a.id);
+              const ib = nodeById.get(b.id);
+              const sa = ia ? biasOfItem(ia) : 'center';
+              const sb = ib ? biasOfItem(ib) : 'center';
+              const order = (s: string) => (s === 'left' ? 0 : s === 'center' ? 1 : 2);
+              const da = order(sa);
+              const db = order(sb);
+              if (da !== db) return da - db;
+              return a.id > b.id ? 1 : -1;
+            })
+            .forEach(d => {
             d.desiredLeft = x;
             x += d.width + HORIZONTAL_GAP;
           });
@@ -599,7 +697,7 @@ export const FamilyTree: React.FC = () => {
         if (!childNode) {
           const coupleWithChild = flowNodes.find(n => 
             n.type === 'couple' && 
-            (n.data.person1?.id === childId || n.data.person2?.id === childId)
+            (((n.data as any)?.person1?.id === childId) || ((n.data as any)?.person2?.id === childId))
           );
           if (coupleWithChild) {
             childNode = coupleWithChild;
@@ -615,7 +713,7 @@ export const FamilyTree: React.FC = () => {
           if (!parentNode) {
             const coupleWithParent = flowNodes.find(n => 
               n.type === 'couple' && 
-              (n.data.person1?.id === node.id || n.data.person2?.id === node.id)
+              (((n.data as any)?.person1?.id === node.id) || ((n.data as any)?.person2?.id === node.id))
             );
             if (coupleWithParent) {
               parentNode = coupleWithParent;

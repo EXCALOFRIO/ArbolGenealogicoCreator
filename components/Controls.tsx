@@ -6,7 +6,7 @@ import { Person, Gender } from '../types';
 import { useTutorial } from '../hooks/useTutorial';
 
 export const Controls: React.FC = () => {
-  const { people, focusId, getPerson, setFocusId, isModalOpen, modalContext, closeAddModal, addRelative, editingPerson, updatePerson } = useFamilyStore();
+  const { people, focusId, getPerson, setFocusId, isModalOpen, modalContext, closeAddModal, addRelative, linkSiblings, editingPerson, updatePerson } = useFamilyStore();
   const { isActive: tutorialActive, currentStep, goToStep } = useTutorial();
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -250,6 +250,35 @@ export const Controls: React.FC = () => {
         photo: newPhoto || undefined,
       });
     } else {
+      // Caso especial: si estamos añadiendo HERMANO/A y esa persona ya existe en el árbol,
+      // enlazarla para que no quede “suelta” (aunque no haya padres).
+      if (modalContext === 'Sibling') {
+        const targetName = newName.toUpperCase().trim();
+        const targetSurnames = newSurnames.toUpperCase().trim();
+        const hasSomeInput = targetName.length >= 2;
+        if (hasSomeInput) {
+          const candidates = people
+            .filter(p => p.id !== focusId)
+            .filter(p => p.name.toUpperCase().trim() === targetName)
+            .filter(p => {
+              // Si el usuario indicó apellidos, exigir match exacto; si no, permitir match solo por nombre.
+              if (targetSurnames.length > 0) return (p.surnames || '').toUpperCase().trim() === targetSurnames;
+              return true;
+            });
+
+          if (candidates.length > 0) {
+            // Preferir el más “suelto” (menos relaciones) para evitar unir con alguien ya conectado a otra rama.
+            const score = (p: Person) => (p.parents?.length || 0) + (p.partners?.length || 0) + (p.children?.length || 0) + (p.siblings?.length || 0);
+            const best = [...candidates].sort((a, b) => score(a) - score(b))[0];
+
+            linkSiblings(focusId, best.id);
+            setFocusId(best.id);
+            handleClose();
+            return;
+          }
+        }
+      }
+
       // Crear nueva persona
       const id = 'P' + Date.now();
       const person: Person = {

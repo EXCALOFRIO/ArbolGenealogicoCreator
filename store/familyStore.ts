@@ -12,13 +12,13 @@ interface FamilyState {
     version: 2;
     focusId: string;
     people: Record<string, { name: string; surnames: string; gender: 'Male' | 'Female'; photo?: string }>;
-    relationships: Record<string, { parents: string[]; partners: string[]; children: string[] }>;
+    relationships: Record<string, { parents: string[]; partners: string[]; children: string[]; siblings?: string[] }>;
   };
   importRelationships: (payload: {
     version: 1 | 2;
     focusId?: string;
     people?: Record<string, { name?: string; surnames?: string; gender?: 'Male' | 'Female'; photo?: string }>;
-    relationships: Record<string, { parents?: string[]; partners?: string[]; children?: string[] }>;
+    relationships: Record<string, { parents?: string[]; partners?: string[]; children?: string[]; siblings?: string[] }>;
   }) => void;
   
   setFocusId: (id: string) => void;
@@ -28,6 +28,7 @@ interface FamilyState {
   
   addPerson: (person: Person) => void;
   addRelative: (newPerson: Person, context: RelationContext) => void;
+  linkSiblings: (aId: string, bId: string) => void;
   updatePerson: (person: Person) => void;
   deletePerson: (id: string) => void;
   
@@ -248,6 +249,52 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       : state.focusId;
     
     return { people: newPeople, focusId: newFocusId };
+  }),
+
+  linkSiblings: (aId, bId) => set((state) => {
+    if (!aId || !bId || aId === bId) return state;
+
+    const byId = new Map(state.people.map(p => [p.id, { ...p }] as const));
+    const a = byId.get(aId);
+    const b = byId.get(bId);
+    if (!a || !b) return state;
+
+    const addUnique = (arr: string[], id: string) => {
+      if (!arr.includes(id)) arr.push(id);
+    };
+
+    // Enlace directo entre hermanos (funciona aunque no haya padres)
+    a.siblings = [...(a.siblings || [])];
+    b.siblings = [...(b.siblings || [])];
+    addUnique(a.siblings, bId);
+    addUnique(b.siblings, aId);
+
+    // Propagar al resto de hermanos existentes (mantener un grupo consistente)
+    const union = Array.from(new Set([...(a.siblings || []), ...(b.siblings || [])]));
+    union.forEach(id => {
+      const p = byId.get(id);
+      if (!p) return;
+      p.siblings = [...(p.siblings || [])];
+      union.forEach(otherId => {
+        if (otherId !== id) addUnique(p.siblings, otherId);
+      });
+      byId.set(id, p);
+    });
+
+    byId.set(aId, a);
+    byId.set(bId, b);
+
+    // Dedupe final
+    const uniq = (arr: string[]) => Array.from(new Set(arr));
+    const newPeople = Array.from(byId.values()).map(p => ({
+      ...p,
+      parents: uniq(p.parents || []).filter(x => x !== p.id),
+      partners: uniq(p.partners || []).filter(x => x !== p.id),
+      children: uniq(p.children || []).filter(x => x !== p.id),
+      siblings: uniq(p.siblings || []).filter(x => x !== p.id),
+    }));
+
+    return { ...state, people: newPeople };
   }),
 
   // Smart add function that links IDs

@@ -72,16 +72,30 @@ export const useFamilyLogic = () => {
     focusPerson.partners.forEach(partnerId => {
       const partner = getPerson(partnerId);
       if (partner) {
+        const addInLawSibling = (siblingId: string) => {
+          if (siblingId === partnerId) return;
+          const sibling = getPerson(siblingId);
+          if (sibling) addNode(sibling, 0, 'PartnerSibling');
+        };
+
         partner.parents.forEach(parentId => {
           const parent = getPerson(parentId);
           if (parent) {
             parent.children.forEach(siblingId => {
               if (siblingId !== partnerId) {
-                const sibling = getPerson(siblingId);
-                if (sibling) addNode(sibling, 0, sibling.gender === 'Male' ? 'Cuñado' : 'Cuñada');
+                addInLawSibling(siblingId);
               }
             });
           }
+        });
+
+        // Si no hay padres (o además), usar siblings directos
+        (partner.siblings || []).forEach(addInLawSibling);
+
+        // Reverse siblings: personas que tienen a mi pareja como hermano/a
+        people.forEach(p => {
+          if (p.id === partnerId) return;
+          if ((p.siblings || []).includes(partnerId)) addInLawSibling(p.id);
         });
       }
     });
@@ -89,6 +103,41 @@ export const useFamilyLogic = () => {
     // 5. Padres (Generación -1)
     const parents = focusPerson.parents.map(id => getPerson(id)).filter((p): p is Person => !!p);
     parents.forEach(p => addNode(p, -1, 'Parent'));
+
+    // Helper: obtener hermanos de una persona incluso si no hay padres/abuelos
+    const collectSiblingsOf = (person: Person): string[] => {
+      const out = new Set<string>();
+
+      // A) Por padres compartidos
+      (person.parents || []).forEach(parentId => {
+        const parent = getPerson(parentId);
+        if (!parent) return;
+        (parent.children || []).forEach(childId => {
+          if (childId !== person.id) out.add(childId);
+        });
+      });
+
+      // B) Campo siblings directo
+      (person.siblings || []).forEach(sibId => {
+        if (sibId !== person.id) out.add(sibId);
+      });
+
+      // C) Reverse siblings
+      people.forEach(p => {
+        if (p.id === person.id) return;
+        if ((p.siblings || []).includes(person.id)) out.add(p.id);
+      });
+
+      // D) Fallback: comparte al menos un parentId
+      if ((person.parents || []).length > 0) {
+        people.forEach(p => {
+          if (p.id === person.id) return;
+          if (p.parents?.some(pid => (person.parents || []).includes(pid))) out.add(p.id);
+        });
+      }
+
+      return Array.from(out);
+    };
 
     // 6. Abuelos (Generación -2)
     parents.forEach(parent => {
@@ -250,21 +299,53 @@ export const useFamilyLogic = () => {
       });
     });
 
+    // 13b. Tíos por hermanos del padre/madre (funciona sin abuelos)
+    parents.forEach(parent => {
+      collectSiblingsOf(parent).forEach(uncleId => {
+        const uncle = getPerson(uncleId);
+        if (uncle) addNode(uncle, -1, 'Uncle/Aunt');
+      });
+    });
+
     // 14. Parejas de tíos - Generación -1
     const uncles = Array.from(nodes.values()).filter(n => n.relationType === 'Uncle/Aunt');
     uncles.forEach(uncle => {
       uncle.partners.forEach(partnerId => {
         const partner = getPerson(partnerId);
-        if (partner) addNode(partner, -1, partner.gender === 'Male' ? 'Tío Político' : 'Tía Política');
+        if (partner) addNode(partner, -1, 'UnclePartner');
       });
     });
 
     // 15. Primos (hijos de tíos) - Generación 0
-    uncles.forEach(uncle => {
-      uncle.children.forEach(cousinId => {
-        const cousin = getPerson(cousinId);
-        if (cousin) addNode(cousin, 0, 'Cousin');
+    // Incluir también hijos de la pareja del tío/tía (para cuando los hijos solo aparecen bajo el cónyuge)
+    const allUncleIds = new Set(uncles.map(u => u.id));
+    const unclePartners = Array.from(nodes.values()).filter(n => n.relationType === 'UnclePartner');
+
+    // Recopilar todos los hijos de tíos y sus parejas
+    const cousinCandidates = new Set<string>();
+    
+    [...uncles, ...unclePartners].forEach(uncleOrPartner => {
+      (uncleOrPartner.children || []).forEach(cousinId => {
+        cousinCandidates.add(cousinId);
       });
+      
+      // También añadir hijos de la pareja (por si los hijos solo están en uno de los dos)
+      (uncleOrPartner.partners || []).forEach(partnerId => {
+        const partner = getPerson(partnerId);
+        if (partner) {
+          (partner.children || []).forEach(cousinId => {
+            cousinCandidates.add(cousinId);
+          });
+        }
+      });
+    });
+
+    cousinCandidates.forEach(cousinId => {
+      // Evitar añadir al propio foco o a padres del foco como "primo"
+      if (cousinId === focusId) return;
+      if (focusPerson.parents.includes(cousinId)) return;
+      const cousin = getPerson(cousinId);
+      if (cousin) addNode(cousin, 0, 'Cousin');
     });
 
     // 16. Parejas de primos - Generación 0
@@ -272,7 +353,7 @@ export const useFamilyLogic = () => {
     cousins.forEach(cousin => {
       cousin.partners.forEach(partnerId => {
         const partner = getPerson(partnerId);
-        if (partner) addNode(partner, 0, 'Primo/a Político/a');
+        if (partner) addNode(partner, 0, 'CousinPartner');
       });
     });
 
@@ -280,7 +361,7 @@ export const useFamilyLogic = () => {
     cousins.forEach(cousin => {
       cousin.children.forEach(childId => {
         const child = getPerson(childId);
-        if (child) addNode(child, 1, 'Sobrino/a Segundo/a');
+        if (child) addNode(child, 1, 'CousinChild');
       });
     });
 
