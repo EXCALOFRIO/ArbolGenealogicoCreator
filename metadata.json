@@ -1,0 +1,5 @@
+{
+  "name": "Árbol Genealogico Creator",
+  "description": "Una aplicación interactiva de árbol genealógico con estética neon, animaciones suaves con Framer Motion y autocompletado inteligente para datos familiares.",
+  "requestFramePermissions": []
+}

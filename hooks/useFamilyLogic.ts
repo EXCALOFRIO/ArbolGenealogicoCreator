@@ -1,0 +1,293 @@
+import { useMemo } from 'react';
+import { Person, RenderNode } from '../types';
+import { useFamilyStore } from '../store/familyStore';
+
+export const useFamilyLogic = () => {
+  const { people, focusId, getPerson } = useFamilyStore();
+
+  const familyTree = useMemo(() => {
+    const focusPerson = getPerson(focusId);
+    if (!focusPerson) return [];
+
+    const nodes = new Map<string, RenderNode>();
+    const visited = new Set<string>();
+
+    const addNode = (p: Person, generation: number, relation: string) => {
+      if (visited.has(p.id)) return;
+      visited.add(p.id);
+      nodes.set(p.id, { ...p, generation, relationType: relation });
+    };
+
+    // 1. Nodo Central (YO)
+    addNode(focusPerson, 0, 'Focus');
+
+    // 2. Mis Parejas (Generación 0)
+    focusPerson.partners.forEach(id => {
+      const p = getPerson(id);
+      if (p) addNode(p, 0, 'Partner');
+    });
+
+    // Hijos visibles: propios + hijos de mis parejas (para mostrar familia completa del núcleo)
+    const visibleChildrenIds = new Set<string>();
+    focusPerson.children.forEach(cid => visibleChildrenIds.add(cid));
+    focusPerson.partners.forEach(pid => {
+      const partner = getPerson(pid);
+      if (!partner) return;
+      partner.children.forEach(cid => visibleChildrenIds.add(cid));
+    });
+
+    // 3. Padres de mi pareja (Suegros) - Generación -1
+    focusPerson.partners.forEach(partnerId => {
+      const partner = getPerson(partnerId);
+      if (partner) {
+        const inLawIds = new Set<string>();
+
+        // Padres declarados
+        partner.parents.forEach(pid => inLawIds.add(pid));
+
+        // Inferir el otro progenitor desde la pareja del padre/madre declarado
+        partner.parents.forEach(inLawId => {
+          const inLaw = getPerson(inLawId);
+          if (!inLaw) return;
+
+          inLaw.partners.forEach(spouseId => {
+            const spouse = getPerson(spouseId);
+            if (!spouse) return;
+
+            // Si el suegro/suegra tiene al partner como hijo, asumimos que la pareja también es suegro/suegra
+            // (sirve para casos donde solo se guardó un parent en partner.parents)
+            const sharesChild = inLaw.children.includes(partnerId) || spouse.children.includes(partnerId);
+            if (sharesChild) inLawIds.add(spouseId);
+          });
+        });
+
+        Array.from(inLawIds).forEach(inLawId => {
+          const inLaw = getPerson(inLawId);
+          if (inLaw) addNode(inLaw, -1, inLaw.gender === 'Male' ? 'Suegro' : 'Suegra');
+        });
+      }
+    });
+
+    // 4. Hermanos de mi pareja (Cuñados) - Generación 0
+    focusPerson.partners.forEach(partnerId => {
+      const partner = getPerson(partnerId);
+      if (partner) {
+        partner.parents.forEach(parentId => {
+          const parent = getPerson(parentId);
+          if (parent) {
+            parent.children.forEach(siblingId => {
+              if (siblingId !== partnerId) {
+                const sibling = getPerson(siblingId);
+                if (sibling) addNode(sibling, 0, sibling.gender === 'Male' ? 'Cuñado' : 'Cuñada');
+              }
+            });
+          }
+        });
+      }
+    });
+
+    // 5. Padres (Generación -1)
+    const parents = focusPerson.parents.map(id => getPerson(id)).filter((p): p is Person => !!p);
+    parents.forEach(p => addNode(p, -1, 'Parent'));
+
+    // 6. Abuelos (Generación -2)
+    parents.forEach(parent => {
+      parent.parents.forEach(gpId => {
+        const gp = getPerson(gpId);
+        if (gp) addNode(gp, -2, 'Grandparent');
+      });
+    });
+
+    // 6b. Bisabuelos y superiores (Generación -3 en adelante)
+    const maxAncestorDepth = 6; // -3 bisabuelo/a, -4 tatarabuelo/a, -5 tatar x2...
+    const ancestorQueue: Array<{ person: Person; depth: number }> = [];
+    // arrancar desde abuelos (depth=2)
+    parents.forEach(parent => {
+      parent.parents.forEach(gpId => {
+        const gp = getPerson(gpId);
+        if (gp) ancestorQueue.push({ person: gp, depth: 2 });
+      });
+    });
+
+    while (ancestorQueue.length > 0) {
+      const { person, depth } = ancestorQueue.shift()!;
+      const nextDepth = depth + 1;
+      if (nextDepth > maxAncestorDepth) continue;
+      person.parents.forEach(pid => {
+        const p = getPerson(pid);
+        if (!p) return;
+        addNode(p, -nextDepth, `Ancestor${nextDepth}`);
+        ancestorQueue.push({ person: p, depth: nextDepth });
+      });
+    }
+
+    // 7. Hermanos (Generación 0)
+    // 7a. Hermanos a través de padres comunes
+    parents.forEach(parent => {
+      parent.children.forEach(childId => {
+        if (childId !== focusId) {
+          const sibling = getPerson(childId);
+          if (sibling) addNode(sibling, 0, 'Sibling');
+        }
+      });
+    });
+
+    // 7b. Hermanos directos - a través del campo siblings (funciona sin padres)
+    (focusPerson.siblings || []).forEach(sibId => {
+      const sibling = getPerson(sibId);
+      if (sibling) addNode(sibling, 0, 'Sibling');
+    });
+
+    // 7c. Hermanos que me tienen en su campo siblings
+    people.forEach(person => {
+      if (person.id === focusId) return;
+      if (visited.has(person.id)) return;
+      
+      if ((person.siblings || []).includes(focusId)) {
+        addNode(person, 0, 'Sibling');
+        return;
+      }
+      
+      // Verificar si esta persona comparte al menos un padre conmigo
+      const sharesParent = person.parents.some(pid => focusPerson.parents.includes(pid));
+      if (sharesParent) {
+        addNode(person, 0, 'Sibling');
+        return;
+      }
+      
+      // Verificar si alguno de los padres de esta persona me tiene como hijo
+      const theirParents = person.parents.map(pid => getPerson(pid)).filter((p): p is Person => !!p);
+      const imTheirSibling = theirParents.some(parent => parent.children.includes(focusId));
+      if (imTheirSibling) {
+        addNode(person, 0, 'Sibling');
+      }
+    });
+
+    // 8. Parejas de mis hermanos (Cuñados) - Generación 0
+    const siblings = Array.from(nodes.values()).filter(n => n.relationType === 'Sibling');
+    siblings.forEach(sibling => {
+      sibling.partners.forEach(partnerId => {
+        const partner = getPerson(partnerId);
+        if (partner) addNode(partner, 0, partner.gender === 'Male' ? 'Cuñado' : 'Cuñada');
+      });
+    });
+
+    // 9. Hijos de mis hermanos (Sobrinos) - Generación 1
+    siblings.forEach(sibling => {
+      sibling.children.forEach(nephewId => {
+        const nephew = getPerson(nephewId);
+        if (nephew) addNode(nephew, 1, nephew.gender === 'Male' ? 'Sobrino' : 'Sobrina');
+      });
+    });
+
+    // 10. Hijos (Generación 1)
+    Array.from(visibleChildrenIds).forEach(childId => {
+      const child = getPerson(childId);
+      if (child) addNode(child, 1, 'Child');
+    });
+
+    // 11. Parejas de mis hijos (Yernos/Nueras) - Generación 1
+    Array.from(visibleChildrenIds).forEach(childId => {
+      const child = getPerson(childId);
+      if (child) {
+        child.partners.forEach(partnerId => {
+          const partner = getPerson(partnerId);
+          if (partner) {
+            addNode(partner, 1, 'ChildPartner');
+          }
+        });
+      }
+    });
+
+    // 12. Nietos (Generación 2)
+    Array.from(visibleChildrenIds).forEach(childId => {
+      const child = getPerson(childId);
+      if (child) {
+        child.children.forEach(gcId => {
+          const gc = getPerson(gcId);
+          if (gc) addNode(gc, 2, 'Grandchild');
+        });
+      }
+    });
+
+    // 12b. Bisnietos y superiores (Generación 3 en adelante)
+    const maxDescDepth = 6; // 3 bisnieto/a, 4 tataranieto/a, 5 tatar x2...
+    const descQueue: Array<{ person: Person; depth: number }> = [];
+    // arrancar desde nietos (depth=2)
+    Array.from(visibleChildrenIds).forEach(childId => {
+      const child = getPerson(childId);
+      if (!child) return;
+      child.children.forEach(gcId => {
+        const gc = getPerson(gcId);
+        if (gc) descQueue.push({ person: gc, depth: 2 });
+      });
+    });
+
+    while (descQueue.length > 0) {
+      const { person, depth } = descQueue.shift()!;
+      const nextDepth = depth + 1;
+      if (nextDepth > maxDescDepth) continue;
+      person.children.forEach(cid => {
+        const c = getPerson(cid);
+        if (!c) return;
+        addNode(c, nextDepth, `Descendant${nextDepth}`);
+        descQueue.push({ person: c, depth: nextDepth });
+      });
+    }
+
+    // 13. Tíos (Generación -1)
+    parents.forEach(parent => {
+      parent.parents.forEach(gpId => {
+        const gp = getPerson(gpId);
+        if (gp) {
+          gp.children.forEach(uncleId => {
+            if (uncleId !== parent.id) {
+              const uncle = getPerson(uncleId);
+              if (uncle) addNode(uncle, -1, 'Uncle/Aunt');
+            }
+          });
+        }
+      });
+    });
+
+    // 14. Parejas de tíos - Generación -1
+    const uncles = Array.from(nodes.values()).filter(n => n.relationType === 'Uncle/Aunt');
+    uncles.forEach(uncle => {
+      uncle.partners.forEach(partnerId => {
+        const partner = getPerson(partnerId);
+        if (partner) addNode(partner, -1, partner.gender === 'Male' ? 'Tío Político' : 'Tía Política');
+      });
+    });
+
+    // 15. Primos (hijos de tíos) - Generación 0
+    uncles.forEach(uncle => {
+      uncle.children.forEach(cousinId => {
+        const cousin = getPerson(cousinId);
+        if (cousin) addNode(cousin, 0, 'Cousin');
+      });
+    });
+
+    // 16. Parejas de primos - Generación 0
+    const cousins = Array.from(nodes.values()).filter(n => n.relationType === 'Cousin');
+    cousins.forEach(cousin => {
+      cousin.partners.forEach(partnerId => {
+        const partner = getPerson(partnerId);
+        if (partner) addNode(partner, 0, 'Primo/a Político/a');
+      });
+    });
+
+    // 17. Hijos de primos (sobrinos segundos) - Generación 1
+    cousins.forEach(cousin => {
+      cousin.children.forEach(childId => {
+        const child = getPerson(childId);
+        if (child) addNode(child, 1, 'Sobrino/a Segundo/a');
+      });
+    });
+
+    // Ordenar por generación para el renderizado
+    return Array.from(nodes.values()).sort((a, b) => a.generation - b.generation);
+
+  }, [people, focusId, getPerson]);
+
+  return familyTree;
+};
