@@ -4,6 +4,8 @@ import { Person, RelationContext } from '../types';
 interface FamilyState {
   people: Person[];
   focusId: string;
+  // Raíz estable de la vista/layout. No cambia al seleccionar otra persona.
+  viewRootId: string;
   isModalOpen: boolean;
   modalContext: RelationContext;
   editingPerson: Person | null;
@@ -22,6 +24,7 @@ interface FamilyState {
   }) => void;
   
   setFocusId: (id: string) => void;
+  setViewRootId: (id: string) => void;
   openAddModal: (context: RelationContext) => void;
   openEditModal: (person: Person) => void;
   closeAddModal: () => void;
@@ -38,6 +41,7 @@ interface FamilyState {
 export const useFamilyStore = create<FamilyState>((set, get) => ({
   people: [],
   focusId: '',
+  viewRootId: '',
   isModalOpen: false,
   modalContext: 'None',
   editingPerson: null,
@@ -214,10 +218,19 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       ? payload.focusId
       : state.focusId;
 
-    return { ...state, people: newPeople, focusId: newFocusId };
+    // En import, si viene focusId válido, también lo usamos como raíz de la vista.
+    const newViewRootId = newFocusId || state.viewRootId;
+
+    return { ...state, people: newPeople, focusId: newFocusId, viewRootId: newViewRootId };
   }),
 
-  setFocusId: (id) => set({ focusId: id }),
+  setFocusId: (id) => set((state) => ({
+    focusId: id,
+    // Si todavía no hay raíz estable (primer uso), fijarla.
+    viewRootId: state.viewRootId || id,
+  })),
+
+  setViewRootId: (id) => set({ viewRootId: id }),
   
   openAddModal: (context) => set({ isModalOpen: true, modalContext: context, editingPerson: null }),
   openEditModal: (person) => set({ isModalOpen: true, modalContext: 'None', editingPerson: person }),
@@ -244,11 +257,11 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       }));
     
     // Si eliminamos la persona en foco, cambiar a otra
-    const newFocusId = state.focusId === id 
-      ? (newPeople[0]?.id || '') 
-      : state.focusId;
-    
-    return { people: newPeople, focusId: newFocusId };
+    const fallbackId = newPeople[0]?.id || '';
+    const newFocusId = state.focusId === id ? fallbackId : state.focusId;
+    const newViewRootId = state.viewRootId === id ? (newFocusId || fallbackId) : state.viewRootId;
+
+    return { people: newPeople, focusId: newFocusId, viewRootId: newViewRootId };
   }),
 
   linkSiblings: (aId, bId) => set((state) => {

@@ -37,7 +37,7 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false }: { person: R
       }
     }
     switch (type) {
-      case 'Focus': return 'YO';
+      case 'Focus': return '';
       case 'Parent': return gender === 'Male' ? 'PADRE' : 'MADRE';
       case 'Partner': return 'PAREJA';
       case 'ChildPartner': return gender === 'Male' ? 'YERNO' : 'NUERA';
@@ -92,7 +92,7 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false }: { person: R
           </div>
         )}
         <span className={`text-[6px] font-semibold tracking-wide mt-1 ${isFocus ? 'text-cyan-400' : 'text-slate-500'}`}>
-          {getRelationLabel(person.relationType, person.gender)}
+          {isFocus ? 'YO' : getRelationLabel(person.relationType, person.gender)}
         </span>
         <h3 className="text-[8px] font-semibold text-white leading-tight text-center line-clamp-1">{person.name}</h3>
         <p className="text-[7px] text-slate-500 text-center leading-tight line-clamp-1">{person.surnames}</p>
@@ -128,7 +128,7 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false }: { person: R
         </div>
       )}
       <span className={`text-[8px] font-semibold tracking-wider mt-2 ${isFocus ? 'text-cyan-400' : 'text-slate-500'}`}>
-        {getRelationLabel(person.relationType, person.gender)}
+        {isFocus ? 'YO' : getRelationLabel(person.relationType, person.gender)}
       </span>
       <h3 className="text-[11px] font-semibold text-white leading-tight text-center mt-0.5">{person.name}</h3>
       <p className="text-[9px] text-slate-500 text-center leading-tight">{person.surnames}</p>

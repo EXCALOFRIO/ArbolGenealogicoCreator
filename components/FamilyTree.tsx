@@ -46,8 +46,8 @@ const FlowContent: React.FC<{ nodes: Node[]; edges: Edge[]; focusId: string }> =
 
 export const FamilyTree: React.FC = () => {
   const familyNodes = useFamilyLogic();
-  const { focusId } = useFamilyStore();
-  const { fitView } = useReactFlow();
+  const { focusId, viewRootId } = useFamilyStore();
+  const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   // Detectar móvil para ajustar tamaños
   const [isMobile, setIsMobile] = useState(
@@ -197,9 +197,10 @@ export const FamilyTree: React.FC = () => {
     const familyById = new Map<string, any>();
     familyNodes.forEach(p => familyById.set(p.id, p));
 
-    const focusContainerId = personToContainer.get(focusId) || focusId;
+    const layoutRootId = viewRootId || focusId;
+    const focusContainerId = personToContainer.get(layoutRootId) || layoutRootId;
     const focusContainerItem = nodeById.get(focusContainerId);
-    const focusPersonData = familyById.get(focusId);
+    const focusPersonData = familyById.get(layoutRootId);
 
     // Detectar los dos "lados" de la familia
     // Caso 1: el foco tiene pareja -> izq = familia pareja, der = familia foco
@@ -207,17 +208,21 @@ export const FamilyTree: React.FC = () => {
     let leftRootPersonId: string | null = null;
     let rightRootPersonId: string | null = null;
 
+    // Primero intentar con la pareja del foco
     if (focusContainerItem && focusContainerItem.kind === 'couple') {
       const d: any = focusContainerItem.node.data;
       const p1 = d?.person1;
       const p2 = d?.person2;
       if (p1?.id && p2?.id) {
-        const focusPerson = p1.id === focusId ? p1 : p2.id === focusId ? p2 : p1;
-        const partnerPerson = p1.id === focusId ? p2 : p2.id === focusId ? p1 : p2;
+        const focusPerson = p1.id === layoutRootId ? p1 : p2.id === layoutRootId ? p2 : p1;
+        const partnerPerson = p1.id === layoutRootId ? p2 : p2.id === layoutRootId ? p1 : p2;
         leftRootPersonId = partnerPerson?.id || null;
         rightRootPersonId = focusPerson?.id || null;
       }
-    } else if (focusPersonData?.parents?.length >= 1) {
+    }
+    
+    // Si no hay pareja pero hay padres, usar los padres para determinar lados
+    if (!leftRootPersonId && !rightRootPersonId && focusPersonData?.parents?.length >= 1) {
       const parentIds = focusPersonData.parents;
       if (parentIds.length === 2) {
         const p0 = familyById.get(parentIds[0]);
@@ -237,6 +242,25 @@ export const FamilyTree: React.FC = () => {
         rightRootPersonId = parentIds[0];
       }
     }
+
+    // Identificar consuegros: padres de las parejas de los hijos del foco
+    const consuegrosIds = new Set<string>();
+    (focusPersonData?.children || []).forEach((childId: string) => {
+      const child = familyById.get(childId);
+      if (!child) return;
+      (child.partners || []).forEach((childPartnerId: string) => {
+        const childPartner = familyById.get(childPartnerId);
+        if (!childPartner) return;
+        (childPartner.parents || []).forEach((consuegrosId: string) => {
+          consuegrosIds.add(consuegrosId);
+          // También añadir parejas de los consuegros
+          const consuegro = familyById.get(consuegrosId);
+          if (consuegro?.partners) {
+            consuegro.partners.forEach((pid: string) => consuegrosIds.add(pid));
+          }
+        });
+      });
+    });
 
     const childrenById = new Map<string, string[]>();
     const partnersById = new Map<string, string[]>();
@@ -263,7 +287,7 @@ export const FamilyTree: React.FC = () => {
         // Añadir pareja(s) (sin añadir el foco ni el otro root)
         const partners = partnersById.get(pid) || [];
         partners.forEach(partnerId => {
-          if (!out.has(partnerId) && partnerId !== focusId && partnerId !== otherRootId) {
+          if (!out.has(partnerId) && partnerId !== layoutRootId && partnerId !== otherRootId) {
             out.add(partnerId);
             q.push(partnerId); // EXPLORAR RAMA PAREJA (NUEVO)
           }
@@ -274,7 +298,7 @@ export const FamilyTree: React.FC = () => {
         children.forEach(childId => {
           familyNodes.forEach(otherPerson => {
             if (otherPerson.id === pid) return;
-            if (otherPerson.id === focusId || otherPerson.id === otherRootId) return;
+            if (otherPerson.id === layoutRootId || otherPerson.id === otherRootId) return;
             if (otherPerson.children?.includes(childId) && !out.has(otherPerson.id)) {
               out.add(otherPerson.id);
             }
@@ -293,7 +317,7 @@ export const FamilyTree: React.FC = () => {
         // Hermanos directos (campo siblings) - importante cuando no hay padres
         const siblings = siblingsById.get(pid) || [];
         siblings.forEach(sibId => {
-          if (sibId === focusId || sibId === otherRootId) return;
+          if (sibId === layoutRootId || sibId === otherRootId) return;
           if (!out.has(sibId)) {
             out.add(sibId);
             q.push(sibId);
@@ -304,7 +328,7 @@ export const FamilyTree: React.FC = () => {
         siblingsById.forEach((sibList, otherId) => {
           if (otherId === pid) return;
           if (!sibList?.includes(pid)) return;
-          if (otherId === focusId || otherId === otherRootId) return;
+          if (otherId === layoutRootId || otherId === otherRootId) return;
           if (!out.has(otherId)) {
             out.add(otherId);
             q.push(otherId);
@@ -315,12 +339,12 @@ export const FamilyTree: React.FC = () => {
           const parentData = familyById.get(parentId);
           if (!parentData) return;
           (parentData.children || []).forEach((sibId: string) => {
-            if (sibId !== focusId && !out.has(sibId)) {
+            if (sibId !== layoutRootId && !out.has(sibId)) {
               out.add(sibId);
               const sibPartners = partnersById.get(sibId) || [];
-              sibPartners.forEach(sp => { if (!out.has(sp) && sp !== focusId) out.add(sp); });
+              sibPartners.forEach(sp => { if (!out.has(sp) && sp !== layoutRootId) out.add(sp); });
               const sibChildren = childrenById.get(sibId) || [];
-              sibChildren.forEach(sc => { if (!out.has(sc) && sc !== focusId) out.add(sc); });
+              sibChildren.forEach(sc => { if (!out.has(sc) && sc !== layoutRootId) out.add(sc); });
             }
           });
         });
@@ -328,7 +352,7 @@ export const FamilyTree: React.FC = () => {
         // DESCENDIENTES (NUEVO: Importante para primos/sobrinos)
         const personChildren = childrenById.get(pid) || [];
         personChildren.forEach(childId => {
-          if (childId !== focusId && !out.has(childId)) {
+          if (childId !== layoutRootId && !out.has(childId)) {
             out.add(childId);
             q.push(childId);
           }
@@ -340,10 +364,31 @@ export const FamilyTree: React.FC = () => {
     const leftFamily = buildFamilySet(leftRootPersonId, rightRootPersonId);
     const rightFamily = buildFamilySet(rightRootPersonId, leftRootPersonId);
 
+    // Detectar si el foco tiene padres en el árbol (para decidir si separar consuegros o no)
+    const focusHasParentsInTree = (focusPersonData?.parents || []).some((pid: string) => familyById.has(pid));
+    
+    // Detectar si el foco tiene hijos (para decidir si aplicar separación de familias)
+    const focusHasChildrenInTree = (focusPersonData?.children || []).some((cid: string) => familyById.has(cid));
+    
+    // Solo aplicar separación izq/der cuando el foco tiene pareja Y tiene hijos/padres
+    // Esto evita cambios drásticos cuando seleccionas a un abuelo
+    const shouldApplyFamilySeparation = focusContainerItem?.kind === 'couple' && (focusHasChildrenInTree || focusHasParentsInTree);
+
     type FamilySide = 'left' | 'center' | 'right';
     const sideOfItemBase = (item: NodeItem): FamilySide => {
       if (item.id === focusContainerId) return 'center';
-      if (item.members.includes(focusId)) return 'center';
+      if (item.members.includes(layoutRootId)) return 'center';
+      
+      // Si no debemos aplicar separación de familias, todo va al centro
+      if (!shouldApplyFamilySeparation) return 'center';
+      
+      // Consuegros: solo separar a la izquierda si el foco tiene sus propios padres
+      // Si el foco no tiene padres, mantener consuegros en el centro para layout simétrico
+      const isConsuegro = item.members.some(m => consuegrosIds.has(m));
+      if (isConsuegro) {
+        return focusHasParentsInTree ? 'left' : 'center';
+      }
+      
       const inLeft = item.members.some(m => leftFamily.has(m));
       const inRight = item.members.some(m => rightFamily.has(m));
       if (inLeft && !inRight) return 'left';
@@ -384,6 +429,11 @@ export const FamilyTree: React.FC = () => {
       const rel = relOf(item);
       if (item.gen === 0 && (rel === 'Sibling' || rel === 'PartnerSibling')) {
         side = 'center';
+      }
+      
+      // Consuegros: solo separar si el foco tiene sus propios padres en el árbol
+      if (rel === 'Consuegro' || rel === 'Consuegra') {
+        side = focusHasParentsInTree ? 'left' : 'center';
       }
 
       if (item.kind === 'person') {
@@ -857,7 +907,7 @@ export const FamilyTree: React.FC = () => {
     });
 
     return { nodes: flowNodes, edges: flowEdges };
-  }, [familyNodes, focusId, isMobile]);
+  }, [familyNodes, viewRootId, isMobile]);
 
   return (
     <div className="w-full h-screen relative bg-slate-950 touch-none">
@@ -890,14 +940,32 @@ export const FamilyTree: React.FC = () => {
       </ReactFlow>
 
       {/* Floating View Controls */}
-      <div className="fixed bottom-24 left-6 z-50 flex flex-col gap-2">
+      <div className="fixed bottom-6 left-6 z-50 flex flex-col gap-2">
         <button
           onClick={() => fitView({ duration: 800, padding: 0.2 })}
-          className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 p-3 rounded-full text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 shadow-xl transition-all group"
+          className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 p-3 rounded-xl text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 shadow-xl transition-all"
           title="Centrar árbol"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+          </svg>
+        </button>
+        <button
+          onClick={() => zoomIn({ duration: 300 })}
+          className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 p-3 rounded-xl text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 shadow-xl transition-all"
+          title="Aumentar zoom"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+        </button>
+        <button
+          onClick={() => zoomOut({ duration: 300 })}
+          className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 p-3 rounded-xl text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 shadow-xl transition-all"
+          title="Reducir zoom"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
           </svg>
         </button>
       </div>

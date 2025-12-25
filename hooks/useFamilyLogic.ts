@@ -3,10 +3,11 @@ import { Person, RenderNode } from '../types';
 import { useFamilyStore } from '../store/familyStore';
 
 export const useFamilyLogic = () => {
-  const { people, focusId, getPerson } = useFamilyStore();
+  const { people, focusId, viewRootId, getPerson } = useFamilyStore();
 
   const familyTree = useMemo(() => {
-    const focusPerson = getPerson(focusId);
+    const rootId = viewRootId || focusId;
+    const focusPerson = getPerson(rootId);
     if (!focusPerson) return [];
 
     const nodes = new Map<string, RenderNode>();
@@ -174,7 +175,7 @@ export const useFamilyLogic = () => {
     // 7a. Hermanos a través de padres comunes
     parents.forEach(parent => {
       parent.children.forEach(childId => {
-        if (childId !== focusId) {
+        if (childId !== rootId) {
           const sibling = getPerson(childId);
           if (sibling) addNode(sibling, 0, 'Sibling');
         }
@@ -189,10 +190,10 @@ export const useFamilyLogic = () => {
 
     // 7c. Hermanos que me tienen en su campo siblings
     people.forEach(person => {
-      if (person.id === focusId) return;
+      if (person.id === rootId) return;
       if (visited.has(person.id)) return;
 
-      if ((person.siblings || []).includes(focusId)) {
+      if ((person.siblings || []).includes(rootId)) {
         addNode(person, 0, 'Sibling');
         return;
       }
@@ -206,10 +207,30 @@ export const useFamilyLogic = () => {
 
       // Verificar si alguno de los padres de esta persona me tiene como hijo
       const theirParents = person.parents.map(pid => getPerson(pid)).filter((p): p is Person => !!p);
-      const imTheirSibling = theirParents.some(parent => parent.children.includes(focusId));
+      const imTheirSibling = theirParents.some(parent => parent.children.includes(rootId));
       if (imTheirSibling) {
         addNode(person, 0, 'Sibling');
       }
+    });
+
+    // 7d. Expandir el grupo de hermanos para cualquier nodo gen=0 ya visible.
+    // Esto evita que al crear hermanos sin madre/padre aún definidos no aparezcan,
+    // especialmente cuando el layout usa una raíz estable distinta al seleccionado.
+    const gen0SeedIds = new Set<string>();
+    Array.from(nodes.values()).forEach(n => {
+      if (n.generation !== 0) return;
+      if (n.relationType === 'Focus' || n.relationType === 'Sibling') {
+        gen0SeedIds.add(n.id);
+      }
+    });
+
+    gen0SeedIds.forEach(seedId => {
+      const seed = getPerson(seedId);
+      if (!seed) return;
+      collectSiblingsOf(seed).forEach(sibId => {
+        const sibling = getPerson(sibId);
+        if (sibling) addNode(sibling, 0, 'Sibling');
+      });
     });
 
     // 8. Parejas de mis hermanos (Cuñados) - Generación 0
@@ -375,7 +396,7 @@ export const useFamilyLogic = () => {
 
     cousinCandidates.forEach(cousinId => {
       // Evitar añadir al propio foco o a padres del foco como "primo"
-      if (cousinId === focusId) return;
+      if (cousinId === rootId) return;
       if (focusPerson.parents.includes(cousinId)) return;
       const cousin = getPerson(cousinId);
       if (cousin) addNode(cousin, 0, 'Cousin');
@@ -401,7 +422,7 @@ export const useFamilyLogic = () => {
     // Ordenar por generación para el renderizado
     return Array.from(nodes.values()).sort((a, b) => a.generation - b.generation);
 
-  }, [people, focusId, getPerson]);
+  }, [people, focusId, viewRootId, getPerson]);
 
   return familyTree;
 };

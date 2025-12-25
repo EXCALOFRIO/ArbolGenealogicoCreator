@@ -36,7 +36,7 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
       }
     }
     switch (type) {
-        case 'Focus': return 'YO';
+      case 'Focus': return '';
         case 'Parent': return gender === 'Male' ? 'PADRE' : 'MADRE';
         case 'Partner': return 'PAREJA';
         case 'ChildPartner': return gender === 'Male' ? 'YERNO' : 'NUERA';
@@ -62,7 +62,7 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
     }
   };
 
-  const label = getRelationLabel(data.relationType, data.gender);
+  const label = isFocus ? 'YO' : getRelationLabel(data.relationType, data.gender);
 
   // Móvil: tarjeta compacta vertical (más estrecha y alta)
   if (isMobile) {
