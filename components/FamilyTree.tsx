@@ -262,29 +262,19 @@ export const FamilyTree: React.FC = () => {
     const familyById = new Map<string, any>();
     familyNodes.forEach(p => familyById.set(p.id, p));
 
-    const layoutRootId = viewRootId || focusId;
-    const focusContainerId = personToContainer.get(layoutRootId) || layoutRootId;
+    const layoutRootId = familyNodes.find(p => p.name.toUpperCase() === 'ALEJANDRO')?.id || familyNodes[0]?.id;
+    const focusContainerId = personToContainer.get(focusId) || focusId;
     const focusContainerItem = nodeById.get(focusContainerId);
-    const focusPersonData = familyById.get(layoutRootId);
+    const focusPersonData = familyById.get(focusId);
 
-    // Detectar los dos "lados" de la familia
+    // Detectar los dos "lados" de la familia basándonos en el ANCLA ESTABLE
+    const anchorPersonData = familyById.get(layoutRootId);
     let leftRootPersonId: string | null = null;
     let rightRootPersonId: string | null = null;
 
-    // Caso A: El foco tiene pareja -> El foco siempre a la DERECHA
-    if (focusContainerItem && focusContainerItem.kind === 'couple') {
-      const d: any = focusContainerItem.node.data;
-      if (d.person1?.id === layoutRootId) {
-        rightRootPersonId = d.person1.id;
-        leftRootPersonId = d.person2?.id || null;
-      } else {
-        rightRootPersonId = d.person2?.id || null;
-        leftRootPersonId = d.person1?.id || null;
-      }
-    }
-    // Caso B: El foco es soltero pero tiene padres -> Madre a la DERECHA, Padre a la IZQUIERDA
-    else if (focusPersonData?.parents?.length >= 1) {
-      const parentIds = focusPersonData.parents;
+    // Si el ancla tiene padres, usamos sus linajes para dividir el mundo
+    if (anchorPersonData?.parents?.length >= 1) {
+      const parentIds = anchorPersonData.parents;
       if (parentIds.length === 2) {
         const p0 = familyById.get(parentIds[0]);
         const p1 = familyById.get(parentIds[1]);
