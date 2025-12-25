@@ -641,46 +641,42 @@ export const FamilyTree: React.FC = () => {
       return items.map((it, idx) => ({ ...it, left: lefts[idx] }));
     };
 
-    gens.forEach((gen, genIdx) => {
+    // 3. Posicionamiento por fases (Focal-Centric)
+    const genNums = [...new Set(nodeItems.map(n => n.gen))];
+    const ancestorGens = genNums.filter(g => g < 0).sort((a, b) => b - a); // -1, -2, -3...
+    const descendantGens = genNums.filter(g => g > 0).sort((a, b) => a - b); // 1, 2, 3...
+    const phases = [0, ...ancestorGens, ...descendantGens];
+
+    phases.forEach((gen) => {
       const row = nodeItems.filter(n => n.gen === gen);
       if (row.length === 0) return;
 
-      // Antes de calcular posiciones, ordena parejas según dónde caen sus padres
-      // (así la familia de Raquel queda a la izquierda si está a la izquierda)
       row.forEach(it => ensureCoupleOrderByParents(it));
 
-      // 1) Preparar grupos por padres (solo cuando hay una pareja de padres clara)
       const groups = new Map<string, NodeItem[]>();
       const ungrouped: NodeItem[] = [];
 
       const getGroupKey = (item: NodeItem): string | null => {
-        // --- ACTUALIZACIÓN: CLUSTER CENTRAL UNIVERSAL ---
-        // Esto agrupa a la pareja principal y sus hermanos en una sola fila compacta
-        // en CUALQUIER generación, no solo en la -1.
-        if (sideOfItem(item) === 'center') {
-          return `GEN_${gen}_CENTER_CLUSTER`;
-        }
-        // ------------------------------------------
+        // En Gen 0, forzamos un cluster central para que el "YO" y sus hermanos estén juntos.
+        if (gen === 0 && sideOfItem(item) === 'center') return 'GEN_0_CENTER_CLUSTER';
 
+        // Para ancestros y descendientes, agrupamos por sus PAREDES (padres) para que los hermanos
+        // se mantengan como un bloque. Esto permite que la pareja de Rafael y la de Raquel
+        // sean grupos distintos y se alineen independientemente sobre sus hijos.
         if (item.kind === 'person') {
           const key = parentPairKey(item.personParents);
           if (key) return key;
-          // Si solo tiene un padre, buscar si ese padre tiene pareja y formar la clave con ambos
           if (item.personParents && item.personParents.length === 1) {
             const singleParentId = item.personParents[0];
             const singleParent = familyById.get(singleParentId);
             if (singleParent?.partners?.length > 0) {
-              // Usar la primera pareja para formar el grupo
               const partnerId = singleParent.partners[0];
-              const pairKey = [singleParentId, partnerId].sort().join('|');
-              return pairKey;
+              return [singleParentId, partnerId].sort().join('|');
             }
             return `single:${singleParentId}`;
           }
           return null;
         }
-
-        // pareja
         const k1 = parentPairKey(item.p1Parents);
         const k2 = parentPairKey(item.p2Parents);
         if (k1 && k2 && k1 !== k2) return `mixed:${k1}::${k2}`;
@@ -697,107 +693,74 @@ export const FamilyTree: React.FC = () => {
         groups.get(key)!.push(item);
       });
 
-      // 2) Calcular desiredLeft para cada item
       const desired: { id: string; width: number; desiredLeft: number }[] = [];
 
-      // A) Grupos
+      // 2a) Grupos
       const sortedGroupKeys = Array.from(groups.keys()).sort((keyA, keyB) => {
-        // El cluster central siempre tiene prioridad o se trata neutro
         if (keyA.includes('_CENTER_CLUSTER')) return 0;
         if (keyB.includes('_CENTER_CLUSTER')) return 0;
 
-        let centerA = 0;
-        let centerB = 0;
-
-        if (keyA.startsWith('single:')) {
-          const pid = keyA.replace('single:', '');
-          const containerId = personToContainer.get(pid);
-          if (containerId) centerA = getNodeCenter(containerId) || 0;
-        } else {
-          const [pa, pb] = keyA.split('|');
-          centerA = getParentCoupleCenter([pa, pb]) || 0;
-        }
-
-        if (keyB.startsWith('single:')) {
-          const pid = keyB.replace('single:', '');
-          const containerId = personToContainer.get(pid);
-          if (containerId) centerB = getNodeCenter(containerId) || 0;
-        } else {
-          const [pa, pb] = keyB.split('|');
-          centerB = getParentCoupleCenter([pa, pb]) || 0;
-        }
-
-        return centerA - centerB;
+        const getKCenter = (k: string) => {
+          if (k.startsWith('single:')) {
+            const pid = k.replace('single:', '');
+            const cid = personToContainer.get(pid);
+            return cid ? getNodeCenter(cid) : 0;
+          }
+          const [pa, pb] = k.split('|');
+          return getParentCoupleCenter([pa, pb]) || 0;
+        };
+        return (getKCenter(keyA) || 0) - (getKCenter(keyB) || 0);
       });
 
       sortedGroupKeys.forEach((key) => {
         const items = groups.get(key)!;
         let anchorCenter: number | null = null;
 
-        // --- ACTUALIZACIÓN: LÓGICA ESPECIAL PARA EL CLUSTER CENTRAL ---
-        if (key.includes('_CENTER_CLUSTER')) {
-          // CALCULAR ANCHOR DINÁMICO (Promedio de la posición de los padres)
-          const parentCenters: number[] = [];
+        if (gen === 0) {
+          anchorCenter = 0;
+        } else if (gen < 0) {
+          // Fase Ancestros: Alinear sobre los hijos
+          const childPos: number[] = [];
           items.forEach(it => {
-            const parents = it.kind === 'person' ? it.personParents : it.p1Parents;
-            if (parents && parents.length > 0) {
-              const cpKey = parentPairKey(parents);
-              if (cpKey) {
-                const cX = getParentCoupleCenter(cpKey.split('|'));
-                if (cX != null) parentCenters.push(cX);
-              } else {
-                const pId = parents[0];
-                const cId = personToContainer.get(pId);
-                if (cId) {
-                  const cX = getNodeCenter(cId);
-                  if (cX != null) parentCenters.push(cX);
-                }
-              }
-            }
-          });
+            it.members.forEach(mId => {
+              const children = childrenById.get(mId) || [];
+              children.forEach(cId => {
+                const cContainerId = personToContainer.get(cId);
+                const cItem = nodeById.get(cContainerId || '');
+                if (!cItem) return;
 
-          if (parentCenters.length > 0) {
-            anchorCenter = parentCenters.reduce((a, b) => a + b, 0) / parentCenters.length;
-          } else {
-            // --- NUEVO: Centrar sobre los hijos si no hay padres biológicos conocidos en el árbol ---
-            // Esto arregla la posición de los bisabuelos y abuelos de ramas laterales
-            const childCenters: number[] = [];
-            items.forEach(it => {
-              it.members.forEach(mId => {
-                const children = childrenById.get(mId) || [];
-                children.forEach(cId => {
-                  const cContainerId = personToContainer.get(cId);
-                  if (cContainerId) {
-                    const cPos = getNodeCenter(cContainerId);
-                    if (cPos != null) childCenters.push(cPos);
-                  }
-                });
+                const cX = getNodeCenter(cItem.id);
+                if (cX == null) return;
+
+                if (cItem.kind === 'couple') {
+                  const isP1 = cItem.person1Id === cId;
+                  childPos.push(cX + (isP1 ? -COUPLE_WIDTH / 4 : COUPLE_WIDTH / 4));
+                } else {
+                  childPos.push(cX);
+                }
               });
             });
-
-            if (childCenters.length > 0) {
-              const uniqueChildCenters = Array.from(new Set(childCenters));
-              anchorCenter = uniqueChildCenters.reduce((a, b) => a + b, 0) / uniqueChildCenters.length;
-            } else {
-              anchorCenter = 0; // Fallback extremo
-            }
+          });
+          if (childPos.length > 0) {
+            anchorCenter = childPos.reduce((a, b) => a + b, 0) / childPos.length;
+          }
+        } else {
+          // Fase Descendientes: Alinear bajo los padres
+          if (key.startsWith('single:')) {
+            const pid = key.replace('single:', '');
+            const cid = personToContainer.get(pid);
+            if (cid) anchorCenter = getNodeCenter(cid);
+          } else {
+            const [a, b] = key.split('|');
+            anchorCenter = getParentCoupleCenter([a, b]);
           }
         }
-        // -----------------------------------------------------
-        else if (key.startsWith('single:')) {
-          const pid = key.replace('single:', '');
-          const containerId = personToContainer.get(pid);
-          if (containerId) anchorCenter = getNodeCenter(containerId);
-        } else {
-          const [a, b] = key.split('|');
-          anchorCenter = getParentCoupleCenter([a, b]);
-        }
-        if (anchorCenter == null) {
-          anchorCenter = 0;
-        }
 
-        // Si solo hay un item, centrarlo exactamente bajo los padres
-        if (items.length === 1 && !key.includes('_CENTER_CLUSTER')) {
+        if (anchorCenter == null) anchorCenter = 0;
+
+        // Si solo hay un item en el grupo, lo centramos exactamente.
+        // Excepto en el cluster central de Gen 0, donde queremos que respete el orden de bias.
+        if (items.length === 1 && key !== 'GEN_0_CENTER_CLUSTER') {
           const it = items[0];
           desired.push({ id: it.id, width: it.width, desiredLeft: anchorCenter - it.width / 2 });
           return;
@@ -805,28 +768,15 @@ export const FamilyTree: React.FC = () => {
 
         const totalWidth = items.reduce((sum, it, i) => sum + it.width + (i > 0 ? HORIZONTAL_GAP : 0), 0);
         let x = anchorCenter - totalWidth / 2;
-        // Ordenar por side para que los de la izquierda queden a la izquierda
         items
           .slice()
           .sort((a, b) => {
-            const sideA = sideOfItem(a);
-            const sideB = sideOfItem(b);
-            if (sideA === 'left' && sideB !== 'left') return -1;
-            if (sideA !== 'left' && sideB === 'left') return 1;
-            if (sideA === 'right' && sideB !== 'right') return 1;
-            if (sideA !== 'right' && sideB === 'right') return -1;
-
-            // Si el side es igual, usar el bias (importante para hermanos/cuñados)
-            const biasA = biasOfItem(a);
-            const biasB = biasOfItem(b);
-
-            // Esto asegura que el matrimonio (bias center) quede en medio de los hermanos (bias left/right)
-            const score = (bias: string) => bias === 'left' ? 0 : bias === 'center' ? 1 : 2;
-            const sA = score(biasA);
-            const sB = score(biasB);
-
+            const sA = sideOfItem(a) === 'left' ? 0 : sideOfItem(a) === 'center' ? 1 : 2;
+            const sB = sideOfItem(b) === 'left' ? 0 : sideOfItem(b) === 'center' ? 1 : 2;
             if (sA !== sB) return sA - sB;
-
+            const bA = biasOfItem(a) === 'left' ? 0 : biasOfItem(a) === 'center' ? 1 : 2;
+            const bB = biasOfItem(b) === 'left' ? 0 : biasOfItem(b) === 'center' ? 1 : 2;
+            if (bA !== bB) return bA - bB;
             return a.id > b.id ? 1 : -1;
           })
           .forEach(it => {
@@ -835,123 +785,80 @@ export const FamilyTree: React.FC = () => {
           });
       });
 
-      // B) No agrupados (incluye parejas mixtas): usar reglas por nodo
-      ungrouped
-        .sort((a, b) => {
-          // Ordenar no agrupados por el centro de sus padres para evitar cruces
-          const c1 = a.kind === 'person' ? getParentCoupleCenter(a.personParents) : getParentCoupleCenter(a.p1Parents);
-          const c2 = b.kind === 'person' ? getParentCoupleCenter(b.personParents) : getParentCoupleCenter(b.p1Parents);
-          return (c1 || 0) - (c2 || 0);
-        })
-        .forEach(it => {
-          let desiredLeft = 0;
-
+      // 2b) Ungrouped
+      ungrouped.forEach(it => {
+        let desiredLeft = 0;
+        if (gen < 0) {
+          const childIds: string[] = [];
+          it.members.forEach(m => childIds.push(...(childrenById.get(m) || [])));
+          const childPos = childIds.map(cId => {
+            const cid = personToContainer.get(cId);
+            const cItem = nodeById.get(cid || '');
+            if (!cItem) return null;
+            const cX = getNodeCenter(cItem.id);
+            if (cX == null) return null;
+            if (cItem.kind === 'couple') {
+              return cX + (cItem.person1Id === cId ? -COUPLE_WIDTH / 4 : COUPLE_WIDTH / 4);
+            }
+            return cX;
+          }).filter(v => v !== null) as number[];
+          if (childPos.length > 0) {
+            desiredLeft = (childPos.reduce((a, b) => a + b, 0) / childPos.length) - it.width / 2;
+          }
+        } else {
           if (it.kind === 'person') {
             const c = getParentCoupleCenter(it.personParents);
             desiredLeft = c != null ? c - it.width / 2 : 0;
           } else {
-            // pareja: intentar alinear cada lado con sus suegros
             const c1 = getParentCoupleCenter(it.p1Parents);
             const c2 = getParentCoupleCenter(it.p2Parents);
-
-            const has1 = c1 != null && it.person1Id;
-            const has2 = c2 != null && it.person2Id;
-
-            if (has1 && has2 && parentPairKey(it.p1Parents) !== parentPairKey(it.p2Parents)) {
-              // mixto: colocar entre ambos
-              const left1 = (c1 as number) - COUPLE_WIDTH * 0.25;
-              const left2 = (c2 as number) - COUPLE_WIDTH * 0.75;
-              desiredLeft = (left1 + left2) / 2;
-            } else if (has1) {
-              desiredLeft = (c1 as number) - COUPLE_WIDTH * 0.25;
-            } else if (has2) {
-              desiredLeft = (c2 as number) - COUPLE_WIDTH * 0.75;
-            } else {
-              desiredLeft = 0;
+            if (c1 != null && c2 != null && parentPairKey(it.p1Parents) !== parentPairKey(it.p2Parents)) {
+              desiredLeft = ((c1 - COUPLE_WIDTH / 4) + (c2 - COUPLE_WIDTH / 4)) / 2;
+            } else if (c1 != null) {
+              desiredLeft = c1 - it.width / 2;
+            } else if (c2 != null) {
+              desiredLeft = c2 - it.width / 2;
             }
           }
-
-          desired.push({ id: it.id, width: it.width, desiredLeft });
-        });
-
-      // Si estamos en la primera fila y todo es 0, distribuir y centrar
-      if (genIdx === 0) {
-        const allZero = desired.every(d => Math.abs(d.desiredLeft) < 1e-6);
-        if (allZero) {
-          const total = desired.reduce((sum, d, i) => sum + d.width + (i > 0 ? HORIZONTAL_GAP : 0), 0);
-          let x = -total / 2;
-          desired
-            .sort((a, b) => {
-              const ia = nodeById.get(a.id);
-              const ib = nodeById.get(b.id);
-              const sa = ia ? biasOfItem(ia) : 'center';
-              const sb = ib ? biasOfItem(ib) : 'center';
-              const order = (s: string) => (s === 'left' ? 0 : s === 'center' ? 1 : 2);
-              const da = order(sa);
-              const db = order(sb);
-              if (da !== db) return da - db;
-              return a.id > b.id ? 1 : -1;
-            })
-            .forEach(d => {
-              d.desiredLeft = x;
-              x += d.width + HORIZONTAL_GAP;
-            });
         }
-      }
+        desired.push({ id: it.id, width: it.width, desiredLeft });
+      });
 
-      // 3) Resolver solapes y asignar posiciones - SEPARANDO POR FAMILIAS
+      // 3) Final Placement
       const FAMILY_GAP = 240;
-      const desiredLeftSeg = desired.filter(d => {
-        const it = nodeById.get(d.id);
-        return it ? sideOfItem(it) === 'left' : false;
-      });
-      const desiredCenterSeg = desired.filter(d => {
-        const it = nodeById.get(d.id);
-        return it ? sideOfItem(it) === 'center' : true;
-      });
-      const desiredRightSeg = desired.filter(d => {
-        const it = nodeById.get(d.id);
-        return it ? sideOfItem(it) === 'right' : false;
-      });
+      const dL = desired.filter(d => sideOfItem(nodeById.get(d.id)!) === 'left');
+      const dC = desired.filter(d => sideOfItem(nodeById.get(d.id)!) === 'center');
+      const dR = desired.filter(d => sideOfItem(nodeById.get(d.id)!) === 'right');
 
-      const placedLeft = desiredLeftSeg.length ? resolveOverlaps(desiredLeftSeg) : [];
-      const placedCenter = desiredCenterSeg.length ? resolveOverlaps(desiredCenterSeg) : [];
-      const placedRight = desiredRightSeg.length ? resolveOverlaps(desiredRightSeg) : [];
+      const pL = dL.length ? resolveOverlaps(dL) : [];
+      const pC = dC.length ? resolveOverlaps(dC) : [];
+      const pR = dR.length ? resolveOverlaps(dR) : [];
 
-      const extent = (arr: { left: number; width: number }[]) => {
+      const getExt = (arr: any[]) => {
         if (!arr.length) return { min: 0, max: 0, empty: true };
-        const min = Math.min(...arr.map(a => a.left));
-        const max = Math.max(...arr.map(a => a.left + a.width));
-        return { min, max, empty: false };
+        const minItems = arr.map(a => a.left);
+        const maxItems = arr.map(a => a.left + a.width);
+        return { min: Math.min(...minItems), max: Math.max(...maxItems), empty: false };
       };
 
-      const eCenter = extent(placedCenter);
-      const centerMin = eCenter.empty ? 0 : eCenter.min;
-      const centerMax = eCenter.empty ? 0 : eCenter.max;
-
-      const eLeft = extent(placedLeft);
-      if (!eLeft.empty) {
-        const shiftLeft = (centerMin - FAMILY_GAP) - eLeft.max;
-        placedLeft.forEach(p => (p.left += shiftLeft));
+      const eC = getExt(pC);
+      const eL = getExt(pL);
+      if (!eL.empty) {
+        const shift = (eC.empty ? -FAMILY_GAP : eC.min - FAMILY_GAP) - eL.max;
+        pL.forEach(p => p.left += shift);
+      }
+      const eR = getExt(pR);
+      if (!eR.empty) {
+        const shift = (eC.empty ? FAMILY_GAP : eC.max + FAMILY_GAP) - eR.min;
+        pR.forEach(p => p.left += shift);
       }
 
-      const eRight = extent(placedRight);
-      if (!eRight.empty) {
-        const shiftRight = (centerMax + FAMILY_GAP) - eRight.min;
-        placedRight.forEach(p => (p.left += shiftRight));
-      }
-
-      const placed = [...placedLeft, ...placedCenter, ...placedRight];
-
-      placed.forEach(p => {
-        const item = nodeById.get(p.id);
-        if (!item) return;
-        item.node.position.x = p.left;
-        const y = item.gen * VERTICAL_SPACING;
-        nodePositions.set(item.id, { x: p.left, y, width: item.width });
-        item.members.forEach(pid => {
-          nodePositions.set(pid, { x: p.left, y, width: item.width });
-        });
+      [...pL, ...pC, ...pR].forEach(p => {
+        const it = nodeById.get(p.id)!;
+        it.node.position.x = p.left;
+        const y = it.gen * VERTICAL_SPACING;
+        nodePositions.set(it.id, { x: p.left, y, width: it.width });
+        it.members.forEach(m => nodePositions.set(m, { x: p.left, y, width: it.width }));
       });
     });
 
