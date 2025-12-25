@@ -921,9 +921,10 @@ export const FamilyTree: React.FC = () => {
                 target: childNodeId,
                 targetHandle: targetHandle || undefined,
                 type: 'smoothstep',
+                pathOptions: { borderRadius: 20 },
                 style: {
                   stroke: '#64748b',
-                  strokeWidth: 2,
+                  strokeWidth: 3,
                 },
               });
             }
@@ -957,7 +958,8 @@ export const FamilyTree: React.FC = () => {
         fitViewOptions={{ padding: 0.4, duration: 400 }}
         defaultEdgeOptions={{
           type: 'smoothstep',
-          style: { stroke: '#64748b', strokeWidth: 2 },
+          pathOptions: { borderRadius: 20 },
+          style: { stroke: '#64748b', strokeWidth: 3 },
         }}
         proOptions={{ hideAttribution: true }}
       >
