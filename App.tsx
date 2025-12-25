@@ -4,7 +4,7 @@ import { FamilyTree } from './components/FamilyTree';
 import { FamilyListView } from './components/FamilyListView';
 import { Controls } from './components/Controls';
 import { ActionMenu } from './components/ActionMenu';
-import { Tutorial } from './components/Tutorial';
+import { HomeButton } from './components/HomeButton';
 import { DebugControls } from './components/DebugControls';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useFamilyStore } from './store/familyStore';
@@ -12,6 +12,7 @@ import { useFamilyStore } from './store/familyStore';
 const App: React.FC = () => {
   const viewMode = useFamilyStore(s => s.viewMode);
   const theme = useFamilyStore(s => s.theme);
+  const isExporting = useFamilyStore(s => s.isExporting);
 
   useEffect(() => {
     try {
@@ -29,13 +30,13 @@ const App: React.FC = () => {
 
   return (
     <ReactFlowProvider>
-      <div className="min-h-screen text-slate-700 dark:text-slate-200 font-sans selection:bg-blue-500 selection:text-white overflow-hidden relative">
-        <ThemeToggle />
-        <Controls />
+      <div style={{ color: 'var(--app-text)' }} className="min-h-screen font-sans overflow-hidden relative">
+        {!isExporting && <HomeButton />}
+        {!isExporting && <ThemeToggle />}
+        {!isExporting && <Controls />}
         {viewMode === 'list' ? <FamilyListView /> : <FamilyTree />}
-        <ActionMenu />
-        <Tutorial />
-        <DebugControls />
+        {!isExporting && <ActionMenu />}
+        {!isExporting && <DebugControls />}
       </div>
     </ReactFlowProvider>
   );
