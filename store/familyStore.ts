@@ -109,7 +109,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     const toUpperOrEmpty = (v: unknown) => (typeof v === 'string' ? v.toUpperCase().trim() : '');
 
     // 0) Si viene people (v2), crear/actualizar datos básicos
-    const byId = new Map(state.people.map(p => [p.id, { ...p }] as const));
+    const byId = new Map(state.people.map(p => [p.id, { ...p }] as [string, Person]));
     if (payload.version === 2 && payload.people) {
       Object.entries(payload.people).forEach(([id, pdata]) => {
         const existing = byId.get(id);
@@ -310,7 +310,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   linkSiblings: (aId, bId) => set((state) => {
     if (!aId || !bId || aId === bId) return state;
 
-    const byId = new Map(state.people.map(p => [p.id, { ...p }] as const));
+    const byId = new Map(state.people.map(p => [p.id, { ...p }] as [string, Person]));
     const a = byId.get(aId);
     const b = byId.get(bId);
     if (!a || !b) return state;
@@ -359,7 +359,8 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     const focusPerson = state.people.find(p => p.id === focusId);
     if (!focusPerson) return state;
 
-    const updatedPeople = [...state.people, newPerson];
+    let updatedPeople = [...state.people, newPerson];
+    let personToAdd = { ...newPerson };
 
     // Update the existing person to include the relationship
     const updatedFocusPerson = { ...focusPerson };
@@ -427,19 +428,22 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       newPerson.children = uniq([...(newPerson.children || []), ...siblingGroup]);
 
       siblingGroup.forEach(memberId => {
-        if (memberId === newPerson.id) return;
-        const member = updatedPeople.find(p => p.id === memberId);
-        if (!member) return;
+        if (memberId === personToAdd.id) return;
+        const memberIdx = updatedPeople.findIndex(p => p.id === memberId);
+        if (memberIdx === -1) return;
 
+        const member = { ...updatedPeople[memberIdx] };
         member.parents = [...(member.parents || [])];
 
         // No forzar si ya tiene 2 padres; pero sí si aún cabe.
-        if (!member.parents.includes(newPerson.id) && member.parents.length < 2) {
-          member.parents.push(newPerson.id);
+        if (!member.parents.includes(personToAdd.id) && member.parents.length < 2) {
+          member.parents.push(personToAdd.id);
         }
 
+        updatedPeople[memberIdx] = member;
+
         // El progenitor debe tener a todos como hijos
-        addUnique(newPerson.children, memberId);
+        addUnique(personToAdd.children, memberId);
       });
 
       // Si estás editando a alguien que no es la raíz actual del layout,
@@ -449,26 +453,28 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       }
     }
     else if (context === 'Child') {
-      updatedFocusPerson.children = [...updatedFocusPerson.children, newPerson.id];
-      newPerson.parents = [focusId];
+      updatedFocusPerson.children = [...updatedFocusPerson.children, personToAdd.id];
+      personToAdd.parents = [focusId];
       // Añadir pareja como padre si existe
       if (updatedFocusPerson.partners.length > 0) {
-        newPerson.parents.push(updatedFocusPerson.partners[0]);
+        personToAdd.parents.push(updatedFocusPerson.partners[0]);
         // También actualizar la pareja
-        const partner = updatedPeople.find(p => p.id === updatedFocusPerson.partners[0]);
-        if (partner) {
-          partner.children = [...partner.children, newPerson.id];
+        const partnerIdx = updatedPeople.findIndex(p => p.id === updatedFocusPerson.partners[0]);
+        if (partnerIdx !== -1) {
+          const partner = { ...updatedPeople[partnerIdx] };
+          partner.children = [...partner.children, personToAdd.id];
+          updatedPeople[partnerIdx] = partner;
         }
       }
     }
     else if (context === 'Partner') {
-      updatedFocusPerson.partners = [...updatedFocusPerson.partners, newPerson.id];
-      newPerson.partners = [focusId];
+      updatedFocusPerson.partners = [...updatedFocusPerson.partners, personToAdd.id];
+      personToAdd.partners = [focusId];
 
       // Si ya hay hijos en uno de los dos, considerarlos hijos de ambos
-      const sharedChildren = Array.from(new Set([...(updatedFocusPerson.children || []), ...(newPerson.children || [])]));
+      const sharedChildren = Array.from(new Set([...(updatedFocusPerson.children || []), ...(personToAdd.children || [])]));
       updatedFocusPerson.children = sharedChildren;
-      newPerson.children = sharedChildren;
+      personToAdd.children = sharedChildren;
 
       const firstSurname = (s: string) => (s || '').trim().split(/\s+/g)[0] || '';
       const inferFatherMother = (a: Person, b: Person) => {
@@ -478,50 +484,67 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       };
 
       sharedChildren.forEach(cid => {
-        const child = updatedPeople.find(p => p.id === cid);
-        if (!child) return;
+        const childIdx = updatedPeople.findIndex(p => p.id === cid);
+        if (childIdx === -1) return;
 
-        if (child.parents.includes(updatedFocusPerson.id) && !child.parents.includes(newPerson.id) && child.parents.length < 2) {
-          child.parents.push(newPerson.id);
+        const child = { ...updatedPeople[childIdx] };
+
+        if (child.parents.includes(updatedFocusPerson.id) && !child.parents.includes(personToAdd.id) && child.parents.length < 2) {
+          child.parents.push(personToAdd.id);
         }
-        if (child.parents.includes(newPerson.id) && !child.parents.includes(updatedFocusPerson.id) && child.parents.length < 2) {
+        if (child.parents.includes(personToAdd.id) && !child.parents.includes(updatedFocusPerson.id) && child.parents.length < 2) {
           child.parents.push(updatedFocusPerson.id);
         }
 
         const parts = (child.surnames || '').trim().split(/\s+/g).filter(Boolean);
         if (parts.length <= 1) {
-          const { father, mother } = inferFatherMother(updatedFocusPerson, newPerson);
+          const { father, mother } = inferFatherMother(updatedFocusPerson, personToAdd);
           const combined = [firstSurname(father.surnames), firstSurname(mother.surnames)].filter(Boolean).join(' ');
           if (combined) child.surnames = combined;
         }
+
+        updatedPeople[childIdx] = child;
       });
     }
     else if (context === 'Sibling') {
       // Siblings share parents (if any)
-      newPerson.parents = [...updatedFocusPerson.parents];
+      personToAdd.parents = [...updatedFocusPerson.parents];
       // Direct sibling relationship (works even without parents)
-      updatedFocusPerson.siblings = [...(updatedFocusPerson.siblings || []), newPerson.id];
-      newPerson.siblings = [focusId];
+      updatedFocusPerson.siblings = [...(updatedFocusPerson.siblings || []), personToAdd.id];
+      personToAdd.siblings = [focusId];
       // Update parents to include this new child
-      updatedPeople.forEach(p => {
+      updatedPeople.forEach((p, idx) => {
         if (updatedFocusPerson.parents.includes(p.id)) {
-          p.children = [...p.children, newPerson.id];
+          const updatedP = { ...p };
+          updatedP.children = [...updatedP.children, personToAdd.id];
+          updatedPeople[idx] = updatedP;
         }
       });
       // Also link to other siblings of focusPerson
       (updatedFocusPerson.siblings || []).forEach(sibId => {
-        if (sibId !== newPerson.id) {
-          const existingSib = updatedPeople.find(p => p.id === sibId);
-          if (existingSib) {
-            existingSib.siblings = [...(existingSib.siblings || []), newPerson.id];
-            newPerson.siblings.push(sibId);
+        if (sibId !== personToAdd.id) {
+          const existingSibIdx = updatedPeople.findIndex(p => p.id === sibId);
+          if (existingSibIdx !== -1) {
+            const existingSib = { ...updatedPeople[existingSibIdx] };
+            existingSib.siblings = [...(existingSib.siblings || []), personToAdd.id];
+            updatedPeople[existingSibIdx] = existingSib;
+            personToAdd.siblings.push(sibId);
           }
         }
       });
     }
 
-    // Replace the focus person in the array with the updated version
-    const finalPeople = updatedPeople.map(p => p.id === focusId ? updatedFocusPerson : p);
+    // Replace the focus person and the new person in the array
+    const finalPeople = updatedPeople.map(p => {
+      if (p.id === focusId) return updatedFocusPerson;
+      if (p.id === personToAdd.id) return personToAdd;
+      return p;
+    });
+
+    // If new person was not yet in updatedPeople (it should be, but let's be safe)
+    if (!finalPeople.some(p => p.id === personToAdd.id)) {
+      finalPeople.push(personToAdd);
+    }
 
     return { people: finalPeople, viewRootId: nextViewRootId };
   }),

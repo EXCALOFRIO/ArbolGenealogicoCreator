@@ -7,10 +7,9 @@ interface Props {
   placeholder?: string;
   label: string;
   multiWord?: boolean;
-  dataTutorial?: string;
 }
 
-export const AutocompleteInput: React.FC<Props> = ({ value, onChange, suggestions, placeholder, label, multiWord, dataTutorial }) => {
+export const AutocompleteInput: React.FC<Props> = ({ value, onChange, suggestions, placeholder, label, multiWord }) => {
   const [filtered, setFiltered] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -73,7 +72,7 @@ export const AutocompleteInput: React.FC<Props> = ({ value, onChange, suggestion
   };
 
   return (
-    <div className="flex flex-col gap-2 relative" ref={wrapperRef} data-tutorial={dataTutorial}>
+    <div className="flex flex-col gap-2 relative" ref={wrapperRef}>
       <label style={{ color: 'var(--app-text)' }} className="text-xs sm:text-sm font-black opacity-90 uppercase tracking-widest">{label}</label>
       <input
         type="text"

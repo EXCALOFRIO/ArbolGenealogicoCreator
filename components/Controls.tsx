@@ -3,11 +3,10 @@ import { useFamilyStore } from '../store/familyStore';
 import { AutocompleteInput } from './AutocompleteInput';
 import { getAutocompleteData, detectGender } from '../services/namesService';
 import { Person, Gender } from '../types';
-import { useTutorial } from '../hooks/useTutorial';
+import { searchSemantically, SemanticSearchResult } from '../services/searchService';
 
 export const Controls: React.FC = () => {
   const { people, focusId, getPerson, setFocusId, viewMode, setViewMode, isModalOpen, modalContext, closeAddModal, addRelative, linkSiblings, editingPerson, updatePerson } = useFamilyStore();
-  const { isActive: tutorialActive, currentStep, goToStep } = useTutorial();
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -23,35 +22,6 @@ export const Controls: React.FC = () => {
   const [nameOptions, setNameOptions] = useState<string[]>([]);
   const [surnameOptions, setSurnameOptions] = useState<string[]>([]);
 
-  // Tutorial auto-advance when typing - funciona para crear persona Y para añadir padre/madre
-  useEffect(() => {
-    if (!tutorialActive) return;
-
-    // Para el primer paso (crearse a sí mismo)
-    if (currentStep === 'create-self' && newName.trim().length >= 2) {
-      goToStep('enter-surname');
-    }
-    else if (currentStep === 'enter-surname' && newSurnames.trim().length >= 3) {
-      goToStep('confirm-person');
-    }
-    // Para añadir padre - reutilizar los subpasos
-    else if (currentStep === 'add-father' && isModalOpen && modalContext === 'Parent') {
-      // Si ya tiene apellidos autocompletados, ir directo a confirmar
-      if (newSurnames.trim().length >= 3 && newName.trim().length >= 2) {
-        goToStep('confirm-person');
-      } else if (newName.trim().length >= 2 && newSurnames.trim().length < 3) {
-        goToStep('enter-surname');
-      }
-    }
-    // Para añadir madre - reutilizar los subpasos
-    else if (currentStep === 'add-mother' && isModalOpen && modalContext === 'Parent') {
-      if (newSurnames.trim().length >= 3 && newName.trim().length >= 2) {
-        goToStep('confirm-person');
-      } else if (newName.trim().length >= 2 && newSurnames.trim().length < 3) {
-        goToStep('enter-surname');
-      }
-    }
-  }, [tutorialActive, currentStep, newName, newSurnames, goToStep, isModalOpen, modalContext]);
 
   useEffect(() => {
     getAutocompleteData().then(data => {
@@ -221,11 +191,15 @@ export const Controls: React.FC = () => {
     }
   }, [isModalOpen, modalContext, editingPerson, focusId, getPerson, newGender, genderAutoDetected]);
 
-  const searchResults = searchTerm.length >= 1
-    ? people.filter(p =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.surnames.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+  const semanticResults = searchTerm.includes(' DE ') ? searchSemantically(searchTerm, people) : [];
+
+  const searchResults: (Person | SemanticSearchResult)[] = searchTerm.length >= 1
+    ? (semanticResults.length > 0
+      ? semanticResults
+      : people.filter(p =>
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.surnames.toLowerCase().includes(searchTerm.toLowerCase())
+      ))
     : [];
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -397,31 +371,43 @@ export const Controls: React.FC = () => {
                 }}
                 className="absolute top-full mt-2 w-full backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border max-h-64 overflow-y-auto"
               >
-                {searchResults.map(p => (
-                  <div
-                    key={p.id}
-                    style={{ borderColor: 'var(--card-border)' }}
-                    className="px-4 py-3 cursor-pointer border-b last:border-0 flex justify-between items-center group transition-all hover:opacity-80"
-                    onClick={() => { setFocusId(p.id); setSearchTerm(''); }}
-                  >
-                    <div className="flex items-center gap-3">
-                      {p.photo ? (
-                        <img src={p.photo} className="w-8 h-8 rounded-full object-cover" alt="" />
-                      ) : (
-                        <div style={{ background: 'var(--gradient-secondary-accent)' }} className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                          {p.name.substring(0, 2).toUpperCase()}
+                {searchResults.map(result => {
+                  const p = 'person' in result ? result.person : result;
+                  const desc = 'relationDescription' in result ? result.relationDescription : null;
+
+                  return (
+                    <div
+                      key={p.id}
+                      style={{ borderColor: 'var(--card-border)' }}
+                      className="px-4 py-3 cursor-pointer border-b last:border-0 flex justify-between items-center group transition-all hover:opacity-80"
+                      onClick={() => { setFocusId(p.id); setSearchTerm(''); }}
+                    >
+                      <div className="flex items-center gap-3">
+                        {p.photo ? (
+                          <img src={p.photo} className="w-8 h-8 rounded-full object-cover" alt="" />
+                        ) : (
+                          <div style={{ background: 'var(--gradient-secondary-accent)' }} className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                            {p.name.substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <div style={{ color: 'var(--app-text)' }} className="font-semibold text-sm transition-colors">{p.name}</div>
+                            {desc && (
+                              <span style={{ background: 'var(--secondary-500)', color: 'white' }} className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase">
+                                {desc}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ color: 'var(--app-text-muted)' }} className="text-[10px]">{p.surnames}</div>
                         </div>
-                      )}
-                      <div>
-                        <div style={{ color: 'var(--app-text)' }} className="font-semibold text-sm transition-colors">{p.name}</div>
-                        <div style={{ color: 'var(--app-text-muted)' }} className="text-[10px]">{p.surnames}</div>
                       </div>
+                      <svg style={{ color: 'var(--app-text-subtle)' }} className="w-4 h-4 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
-                    <svg style={{ color: 'var(--app-text-subtle)' }} className="w-4 h-4 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -498,7 +484,6 @@ export const Controls: React.FC = () => {
                 onChange={setNewName}
                 suggestions={nameOptions}
                 placeholder="Ej. Alejandro"
-                dataTutorial="nombre"
               />
               <AutocompleteInput
                 label="Apellidos"
@@ -507,14 +492,12 @@ export const Controls: React.FC = () => {
                 suggestions={surnameOptions}
                 placeholder="Ej. Ramírez"
                 multiWord
-                dataTutorial="apellidos"
               />
 
               <div className="flex gap-3 sm:gap-4 mt-4 sm:mt-6">
                 <button
                   onClick={handleCreate}
                   disabled={!newName || !newSurnames}
-                  data-tutorial="confirmar"
                   style={{ background: 'var(--secondary-500)' }}
                   className="flex-[1.5] text-white py-4 sm:py-5 rounded-2xl shadow-xl font-black text-lg sm:text-xl disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed transition-all transform active:scale-[0.98] hover:brightness-110"
                 >

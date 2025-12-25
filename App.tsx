@@ -5,7 +5,6 @@ import { FamilyListView } from './components/FamilyListView';
 import { Controls } from './components/Controls';
 import { ActionMenu } from './components/ActionMenu';
 import { HomeButton } from './components/HomeButton';
-import { Tutorial } from './components/Tutorial';
 import { DebugControls } from './components/DebugControls';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useFamilyStore } from './store/familyStore';
@@ -37,7 +36,6 @@ const App: React.FC = () => {
         {!isExporting && <Controls />}
         {viewMode === 'list' ? <FamilyListView /> : <FamilyTree />}
         {!isExporting && <ActionMenu />}
-        {!isExporting && <Tutorial />}
         {!isExporting && <DebugControls />}
       </div>
     </ReactFlowProvider>

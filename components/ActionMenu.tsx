@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFamilyStore } from '../store/familyStore';
-import { useTutorial } from '../hooks/useTutorial';
 import { RelationContext } from '../types';
 import { useIsMobile } from '../hooks/useIsMobile';
 
@@ -104,7 +103,6 @@ const SparkleIcon = () => (
 
 export const ActionMenu: React.FC = () => {
   const { focusId, people, getPerson, openAddModal, openEditModal, deletePerson, exportRelationships, importRelationships, setIsExporting } = useFamilyStore();
-  const { startTutorial, hasCompletedOnce } = useTutorial();
   const isMobile = useIsMobile();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -199,9 +197,6 @@ export const ActionMenu: React.FC = () => {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     openAddModal('None');
-                    if (!hasCompletedOnce && !isMobile) {
-                      startTutorial();
-                    }
                   }}
                   style={{ background: 'var(--secondary-500)' }}
                   className="flex-1 py-4 sm:py-6 rounded-[24px] text-white font-black shadow-xl transition-all flex items-center justify-center gap-3 text-lg sm:text-xl hover:bg-secondary-600"
@@ -317,7 +312,6 @@ export const ActionMenu: React.FC = () => {
                   <button
                     key={action.id}
                     onClick={() => handleAction(action)}
-                    data-tutorial={action.id === 'parent' ? 'padre' : undefined}
                     className="flex flex-col items-center gap-1 p-2 rounded-xl transition-colors active:scale-95 hover:opacity-80"
                     style={{ background: 'transparent' }}
                   >
@@ -382,7 +376,6 @@ export const ActionMenu: React.FC = () => {
                   whileHover={{ scale: 1.08, y: -2 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleAction(action)}
-                  data-tutorial={action.id === 'parent' ? 'padre' : undefined}
                   className="flex flex-col items-center gap-1 group"
                 >
                   <div className={`
