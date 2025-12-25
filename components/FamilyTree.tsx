@@ -251,48 +251,39 @@ export const FamilyTree: React.FC = () => {
     const focusPersonData = familyById.get(layoutRootId);
 
     // Detectar los dos "lados" de la familia
-    // Caso 1: el foco tiene pareja -> izq = familia pareja, der = familia foco
-    // Caso 2: el foco tiene padres -> izq = familia madre, der = familia padre
     let leftRootPersonId: string | null = null;
     let rightRootPersonId: string | null = null;
 
-    // Primero intentar con la pareja del foco
+    // Caso A: El foco tiene pareja -> El foco siempre a la DERECHA
     if (focusContainerItem && focusContainerItem.kind === 'couple') {
       const d: any = focusContainerItem.node.data;
-      const p1 = d?.person1;
-      const p2 = d?.person2;
-      if (p1?.id && p2?.id) {
-        // ACTUALIZACIÓN: Asignación ESTABLE de raíces.
-        // Siempre mujer a la izquierda y hombre a la derecha,
-        // sin importar quién sea el foco seleccionado.
-        if (p1.gender === 'Female') {
-          leftRootPersonId = p1.id;
-          rightRootPersonId = p2.id;
-        } else {
-          leftRootPersonId = p2.id;
-          rightRootPersonId = p1.id;
-        }
+      if (d.person1?.id === layoutRootId) {
+        rightRootPersonId = d.person1.id;
+        leftRootPersonId = d.person2?.id || null;
+      } else {
+        rightRootPersonId = d.person2?.id || null;
+        leftRootPersonId = d.person1?.id || null;
       }
     }
-
-    // Si no hay pareja pero hay padres, usar los padres para determinar lados
-    if (!leftRootPersonId && !rightRootPersonId && focusPersonData?.parents?.length >= 1) {
+    // Caso B: El foco es soltero pero tiene padres -> Madre a la DERECHA, Padre a la IZQUIERDA
+    else if (focusPersonData?.parents?.length >= 1) {
       const parentIds = focusPersonData.parents;
       if (parentIds.length === 2) {
         const p0 = familyById.get(parentIds[0]);
         const p1 = familyById.get(parentIds[1]);
         if (p0?.gender === 'Female') {
-          leftRootPersonId = parentIds[0];
-          rightRootPersonId = parentIds[1];
-        } else if (p1?.gender === 'Female') {
-          leftRootPersonId = parentIds[1];
           rightRootPersonId = parentIds[0];
+          leftRootPersonId = parentIds[1];
+        } else if (p1?.gender === 'Female') {
+          rightRootPersonId = parentIds[1];
+          leftRootPersonId = parentIds[0];
         } else {
+          // Fallback estable
           const sorted = [...parentIds].sort();
           leftRootPersonId = sorted[0];
           rightRootPersonId = sorted[1];
         }
-      } else if (parentIds.length === 1) {
+      } else {
         rightRootPersonId = parentIds[0];
       }
     }
@@ -344,7 +335,7 @@ export const FamilyTree: React.FC = () => {
         // Subir a padres
         const parents = parentsById.get(pid) || [];
         parents.forEach(parentId => {
-          if (!out.has(parentId)) {
+          if (!out.has(parentId) && parentId !== layoutRootId && parentId !== otherRootId) {
             out.add(parentId);
             q.push(parentId);
           }
@@ -538,18 +529,12 @@ export const FamilyTree: React.FC = () => {
         if (bloodId && pRightSibs.includes(bloodId)) return 'right';
         if (rightRoot?.parents?.some((p: string) => itemParents?.includes(p))) return 'right';
       }
+      if (item.gen === 0 && (item.id === layoutRootId || item.members.includes(layoutRootId))) return 'right';
 
-      if (item.gen === 0 && rel === 'PartnerSibling') return 'left';
-      if (item.gen === 0 && rel === 'Sibling') return 'right';
-
-      // SESGO PROACTIVO (NUEVO): Si un miembro de una pareja tiene hijos que casan con el "Left branch",
-      // mover esa pareja hacia la izquierda para evitar cruces.
+      // SESGO PROACTIVO: Si un miembro de una pareja tiene hijos que casan con el "Left branch"
       if (item.kind === 'couple') {
         const p1Id = item.person1Id;
         const p2Id = item.person2Id;
-        const p1Data = familyById.get(p1Id);
-        const p2Data = familyById.get(p2Id);
-
         const hasChildInLeft = (pId: string) => {
           const children = childrenById.get(pId) || [];
           return children.some(cid => {
@@ -557,9 +542,15 @@ export const FamilyTree: React.FC = () => {
             return childPartners.some(cp => leftFamily.has(cp));
           });
         };
-
         if (hasChildInLeft(p1Id!) || hasChildInLeft(p2Id!)) return 'left';
       }
+
+      // Bias dinámico basado en las familias raíz definidas
+      const myId = item.kind === 'person' ? item.id : item.person1Id;
+      const partnerId = item.kind === 'couple' ? item.person2Id : null;
+
+      if (leftFamily.has(myId!) || (partnerId && leftFamily.has(partnerId))) return 'left';
+      if (rightFamily.has(myId!) || (partnerId && rightFamily.has(partnerId))) return 'right';
 
       return sideOfItem(item);
     };
