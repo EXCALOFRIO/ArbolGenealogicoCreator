@@ -465,13 +465,18 @@ export const FamilyTree: React.FC = () => {
 
         const sharesWithLeft = leftRoot?.parents?.some((p: string) => itemParents?.includes(p));
         const sharesWithRight = rightRoot?.parents?.some((p: string) => itemParents?.includes(p));
-        // ------------------------------------------------------
+
+        // --- INICIO DE LA CORRECCIÓN ---
+        const isParentOfLeftRoot = leftRoot?.parents?.some((pId: string) => item.members.includes(pId));
+        const isParentOfRightRoot = rightRoot?.parents?.some((pId: string) => item.members.includes(pId));
+        // --- FIN DE LA CORRECCIÓN ---
 
         const myId = item.kind === 'person' ? item.id : item.person1Id;
         const partnerId = item.kind === 'couple' ? item.person2Id : null;
 
         // Si eres el padre/madre raíz, o hermano de ellos -> CENTRO
-        if (item.id === leftRootPersonId || item.id === rightRootPersonId ||
+        if (isParentOfLeftRoot || isParentOfRightRoot || // <-- NUEVA CONDICIÓN
+          item.id === leftRootPersonId || item.id === rightRootPersonId ||
           pLeftSibs.includes(myId!) || pRightSibs.includes(myId!) ||
           sharesWithLeft || sharesWithRight ||
           (partnerId && (pLeftSibs.includes(partnerId) || pRightSibs.includes(partnerId)))) {

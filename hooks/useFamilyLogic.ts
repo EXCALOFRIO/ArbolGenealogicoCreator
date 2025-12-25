@@ -251,7 +251,7 @@ export const useFamilyLogic = () => {
           // Añadir parejas de sobrinos
           nephew.partners.forEach(pid => {
             const partner = getPerson(pid);
-            if (partner) addNode(partner, 1, 'NephewPartner');
+            if (partner) addNode(partner, 1, 'Partner');
           });
         }
       });
@@ -289,7 +289,7 @@ export const useFamilyLogic = () => {
             // Añadir parejas de nietos
             gc.partners.forEach(pid => {
               const partner = getPerson(pid);
-              if (partner) addNode(partner, 2, 'GrandchildPartner');
+              if (partner) addNode(partner, 2, 'Partner');
             });
           }
         });
@@ -321,7 +321,7 @@ export const useFamilyLogic = () => {
         // Añadir parejas de descendientes (bisnietos etc)
         c.partners.forEach(pid => {
           const partner = getPerson(pid);
-          if (partner) addNode(partner, nextDepth, `Descendant${nextDepth}Partner`);
+          if (partner) addNode(partner, nextDepth, 'Partner');
         });
 
         descQueue.push({ person: c, depth: nextDepth });
