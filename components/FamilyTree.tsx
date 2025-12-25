@@ -388,6 +388,24 @@ export const FamilyTree: React.FC = () => {
       return out;
     };
 
+    // Recursive lineage detection (parents, grandparents, etc.)
+    const getFullLineage = (rootId: string | null): Set<string> => {
+      const lineage = new Set<string>();
+      if (!rootId) return lineage;
+      const q = [rootId];
+      while (q.length > 0) {
+        const id = q.shift()!;
+        if (lineage.has(id)) continue;
+        lineage.add(id);
+        const p = familyById.get(id);
+        if (p?.parents) q.push(...p.parents);
+      }
+      return lineage;
+    };
+
+    const leftLineage = getFullLineage(leftRootPersonId);
+    const rightLineage = getFullLineage(rightRootPersonId);
+
     const leftFamily = buildFamilySet(leftRootPersonId, rightRootPersonId);
     const rightFamily = buildFamilySet(rightRootPersonId, leftRootPersonId);
 
@@ -437,12 +455,18 @@ export const FamilyTree: React.FC = () => {
 
       let side: FamilySide = sideOfItemBase(item);
 
-      // Mantener hermanos/cuñaados cerca del foco (en el centro), no en ramas separadas.
-      // El orden izquierda/derecha se controla con un “bias” aparte.
+      // --- CRITICAL FIX: FORZAR LINAJE PRINCIPAL AL SEGMENTO CENTER ---
+      // Si alguno de los miembros del item pertenece al linaje recursivo izquierdo o derecho,
+      // DEBE estar en el carril central para mantener la alineación vertical.
+      const belongsToPrimaryLineage = item.members.some(m => leftLineage.has(m) || rightLineage.has(m));
+      if (belongsToPrimaryLineage) {
+        side = 'center';
+      }
+
+      // Mantener hermanos/cuñados cerca del foco (en el centro), no en ramas separadas.
       const relOf = (it: NodeItem): string | null => {
         const d: any = it.node.data;
         if (it.kind === 'person') return d?.relationType || null;
-        // couple: si alguno es hermano/cuñado, tomar ese tipo
         const r1 = d?.person1?.relationType;
         const r2 = d?.person2?.relationType;
         return r1 || r2 || null;
@@ -452,44 +476,15 @@ export const FamilyTree: React.FC = () => {
         side = 'center';
       }
 
-      // 2. Lógica Gen -1 (Tíos/Padres) - ¡ESTA ES LA CLAVE!
-      // Si eres hermano del Padre Raíz o de la Madre Raíz, vas al CENTRO obligatoriamente.
-      if (item.gen === -1) {
-        const pLeftSibs = siblingsById.get(leftRootPersonId || '') || [];
-        const pRightSibs = siblingsById.get(rightRootPersonId || '') || [];
-
-        // --- NUEVO: Detección robusta por padres compartidos ---
-        const leftRoot = familyById.get(leftRootPersonId || '');
-        const rightRoot = familyById.get(rightRootPersonId || '');
-        const itemParents = item.kind === 'person' ? item.personParents : item.p1Parents;
-
-        const sharesWithLeft = leftRoot?.parents?.some((p: string) => itemParents?.includes(p));
-        const sharesWithRight = rightRoot?.parents?.some((p: string) => itemParents?.includes(p));
-
-        // --- INICIO DE LA CORRECCIÓN ---
-        const isParentOfLeftRoot = leftRoot?.parents?.some((pId: string) => item.members.includes(pId));
-        const isParentOfRightRoot = rightRoot?.parents?.some((pId: string) => item.members.includes(pId));
-        // --- FIN DE LA CORRECCIÓN ---
-
-        const myId = item.kind === 'person' ? item.id : item.person1Id;
-        const partnerId = item.kind === 'couple' ? item.person2Id : null;
-
-        // Si eres el padre/madre raíz, o hermano de ellos -> CENTRO
-        if (isParentOfLeftRoot || isParentOfRightRoot || // <-- NUEVA CONDICIÓN
-          item.id === leftRootPersonId || item.id === rightRootPersonId ||
-          pLeftSibs.includes(myId!) || pRightSibs.includes(myId!) ||
-          sharesWithLeft || sharesWithRight ||
-          (partnerId && (pLeftSibs.includes(partnerId) || pRightSibs.includes(partnerId)))) {
-          side = 'center';
-        }
-      }
-
-
       if (item.kind === 'person') {
         const parentContainerId = getParentContainerId(item.personParents);
         if (parentContainerId && parentContainerId !== item.id) {
           const parentContainer = nodeById.get(parentContainerId);
-          if (parentContainer) side = sideOfItemBase(parentContainer);
+          if (parentContainer) {
+            // Si el padre está en el centro (linaie principal), el hijo también
+            const pSide = sideOfItemBase(parentContainer);
+            if (pSide === 'center') side = 'center';
+          }
         }
       }
 
@@ -508,49 +503,33 @@ export const FamilyTree: React.FC = () => {
             ? 'Sibling'
             : null;
 
-      // --- CORRECCIÓN EN GEN -1 (PADRES/TÍOS) ---
+      // --- SESGO POR LINAJE RECURSIVO ---
+      // Si el item pertenece al linaje izquierdo (familia del padre), bias left.
+      // Si al derecho (familia de la madre), bias right.
+      const isLeftLineage = item.members.some(m => leftLineage.has(m));
+      const isRightLineage = item.members.some(m => rightLineage.has(m));
+
+      if (isLeftLineage && !isRightLineage) return 'left';
+      if (isRightLineage && !isLeftLineage) return 'right';
+
+      // El matrimonio principal (Padres) de la generación -1 siempre al centro para ser el eje local
       if (item.gen === -1) {
-        const d: any = item.node.data;
-        // El matrimonio principal (Padres) siempre al centro para ser el eje
         if (d?.relationType === 'Parent' || d?.person1?.relationType === 'Parent' || d?.person2?.relationType === 'Parent') return 'center';
 
         const pLeftSibs = siblingsById.get(leftRootPersonId || '') || [];
         const pRightSibs = siblingsById.get(rightRootPersonId || '') || [];
 
-        // Robust check by parents
-        const leftRoot = familyById.get(leftRootPersonId || '');
-        const rightRoot = familyById.get(rightRootPersonId || '');
-        const itemParents = item.kind === 'person' ? item.personParents : item.p1Parents;
-
-        // Identificar quién es el pariente de sangre en este nodo
+        // Identificar quién es el pariente de sangre en este nodo para tíos
         const bloodId = item.kind === 'person' ? item.id :
           (pLeftSibs.includes(item.person1Id!) || pRightSibs.includes(item.person1Id!)) ? item.person1Id : item.person2Id;
 
-        // Si es hermano del padre (LeftRoot) -> bias Left (izquierda del matrimonio)
         if (bloodId && pLeftSibs.includes(bloodId)) return 'left';
-        if (leftRoot?.parents?.some((p: string) => itemParents?.includes(p))) return 'left';
-
-        // Si es hermano de la madre (RightRoot) -> bias Right (derecha del matrimonio)
         if (bloodId && pRightSibs.includes(bloodId)) return 'right';
-        if (rightRoot?.parents?.some((p: string) => itemParents?.includes(p))) return 'right';
       }
+
       if (item.gen === 0 && (item.id === layoutRootId || item.members.includes(layoutRootId))) return 'right';
 
-      // SESGO PROACTIVO: Si un miembro de una pareja tiene hijos que casan con el "Left branch"
-      if (item.kind === 'couple') {
-        const p1Id = item.person1Id;
-        const p2Id = item.person2Id;
-        const hasChildInLeft = (pId: string) => {
-          const children = childrenById.get(pId) || [];
-          return children.some(cid => {
-            const childPartners = partnersById.get(cid) || [];
-            return childPartners.some(cp => leftFamily.has(cp));
-          });
-        };
-        if (hasChildInLeft(p1Id!) || hasChildInLeft(p2Id!)) return 'left';
-      }
-
-      // Bias dinámico basado en las familias raíz definidas
+      // Bias dinámico basado en las familias de hermanos/primos
       const myId = item.kind === 'person' ? item.id : item.person1Id;
       const partnerId = item.kind === 'couple' ? item.person2Id : null;
 
@@ -780,7 +759,28 @@ export const FamilyTree: React.FC = () => {
           if (parentCenters.length > 0) {
             anchorCenter = parentCenters.reduce((a, b) => a + b, 0) / parentCenters.length;
           } else {
-            anchorCenter = 0; // Fallback
+            // --- NUEVO: Centrar sobre los hijos si no hay padres biológicos conocidos en el árbol ---
+            // Esto arregla la posición de los bisabuelos y abuelos de ramas laterales
+            const childCenters: number[] = [];
+            items.forEach(it => {
+              it.members.forEach(mId => {
+                const children = childrenById.get(mId) || [];
+                children.forEach(cId => {
+                  const cContainerId = personToContainer.get(cId);
+                  if (cContainerId) {
+                    const cPos = getNodeCenter(cContainerId);
+                    if (cPos != null) childCenters.push(cPos);
+                  }
+                });
+              });
+            });
+
+            if (childCenters.length > 0) {
+              const uniqueChildCenters = Array.from(new Set(childCenters));
+              anchorCenter = uniqueChildCenters.reduce((a, b) => a + b, 0) / uniqueChildCenters.length;
+            } else {
+              anchorCenter = 0; // Fallback extremo
+            }
           }
         }
         // -----------------------------------------------------
