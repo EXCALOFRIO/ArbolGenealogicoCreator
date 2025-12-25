@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
-import { ReactFlow, Background, Edge, Node, useReactFlow, ConnectionLineType } from '@xyflow/react';
+import { ReactFlow, Background, Edge, Node, useReactFlow, ConnectionLineType, MiniMap } from '@xyflow/react';
 import { toPng } from 'html-to-image';
 import { useFamilyLogic } from '../hooks/useFamilyLogic';
 import { PersonNode } from './PersonNode';
@@ -843,6 +843,20 @@ export const FamilyTree: React.FC = () => {
       });
     });
 
+    // --- REFINAMIENTO FINAL: Inyectar información de linaje en el data para el Minimapa ---
+    flowNodes.forEach(n => {
+      if (n.type === 'background') return;
+
+      const item = nodeById.get(n.id);
+      if (item) {
+        const inLeft = item.members.some(m => leftLineage.has(m) || leftFamily.has(m));
+        const inRight = item.members.some(m => rightLineage.has(m) || rightFamily.has(m));
+
+        if (inLeft) n.data = { ...n.data, lineage: 'paternal' };
+        else if (inRight) n.data = { ...n.data, lineage: 'maternal' };
+      }
+    });
+
     return { nodes: flowNodes, edges: flowEdges };
   }, [familyNodes, viewRootId, isMobile]);
 
@@ -876,6 +890,28 @@ export const FamilyTree: React.FC = () => {
       >
         <FlowContent nodes={nodes} edges={edges} focusId={focusId} />
         <Background color="var(--dot-color)" gap={40} size={1} />
+        <MiniMap
+          position="bottom-right"
+          maskColor="transparent"
+          style={{
+            background: 'var(--card-bg)',
+            borderRadius: '16px',
+            border: '1px solid var(--card-border)',
+            overflow: 'hidden'
+          }}
+          nodeColor={(n: any) => {
+            if (n.type === 'background') return 'transparent';
+            if (n.id === focusId) return '#3b82f6';
+
+            if (n.data?.lineage === 'paternal') return '#ff9800'; // Naranja/Amarillo
+            if (n.data?.lineage === 'maternal') return '#4caf50'; // Verde
+
+            return 'rgba(255, 255, 255, 0.2)';
+          }}
+          nodeStrokeWidth={3}
+          zoomable
+          pannable
+        />
       </ReactFlow>
 
       {/* Botones de zoom/centrar */}

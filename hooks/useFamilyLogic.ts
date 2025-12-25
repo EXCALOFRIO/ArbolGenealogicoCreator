@@ -409,6 +409,13 @@ export const useFamilyLogic = () => {
       });
     });
 
+    // 18. EXPOSICIÓN TOTAL: Cualquier persona que no haya sido añadida aún
+    people.forEach(p => {
+      if (!visited.has(p.id)) {
+        addNode(p, 0, 'Extended');
+      }
+    });
+
     // Ordenar por generación para el renderizado
     return Array.from(nodes.values()).sort((a, b) => a.generation - b.generation);
 
