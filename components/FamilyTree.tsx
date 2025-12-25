@@ -92,7 +92,7 @@ export const FamilyTree: React.FC = () => {
             // 3. Generar la imagen con alta calidad
             const dataUrl = await toPng(element, {
               backgroundColor: theme === 'dark' ? '#0e100a' : '#f4f5ef',
-              pixelRatio: 3, // Muy alta calidad
+              pixelRatio: 4, // Ultra alta calidad
               filter: (node) => {
                 // Ocultar elementos innecesarios en la foto
                 const exclusionClasses = [
