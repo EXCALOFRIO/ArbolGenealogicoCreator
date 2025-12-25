@@ -265,38 +265,7 @@ export const useFamilyLogic = () => {
           if (partner) {
             addNode(partner, 1, 'ChildPartner');
 
-            // 11b. Padres de la pareja del hijo (Consuegros) - Generación -1 (o misma que mis padres)
-            partner.parents.forEach(parentInLawId => {
-              const pil = getPerson(parentInLawId);
-              if (pil) {
-                addNode(pil, -1, pil.gender === 'Male' ? 'Consuegro' : 'Consuegra');
-
-                // 11c. Abuelos de la pareja del hijo (Bisabuelos de los nietos) - Gen -2
-                pil.parents.forEach(gpId => {
-                  const gp = getPerson(gpId);
-                  if (gp) addNode(gp, -2, 'Ancestor');
-                });
-              }
-            });
-
-            // Inferir el otro progenitor si no está en parents
-            partner.parents.forEach(pilId => {
-              const pil = getPerson(pilId);
-              if (pil) {
-                pil.partners.forEach(spouseId => {
-                  const spouse = getPerson(spouseId);
-                  if (spouse && (pil.children.includes(partnerId) || spouse.children.includes(partnerId))) {
-                    addNode(spouse, -1, spouse.gender === 'Male' ? 'Consuegro' : 'Consuegra');
-
-                    // Abuelos desde este lado también
-                    spouse.parents.forEach(gpId => {
-                      const gp = getPerson(gpId);
-                      if (gp) addNode(gp, -2, 'Ancestor');
-                    });
-                  }
-                });
-              }
-            });
+            // 11b. (Removed) Se ha eliminado la lógica de añadir consuegros
           }
         });
       }

@@ -297,24 +297,6 @@ export const FamilyTree: React.FC = () => {
       }
     }
 
-    // Identificar consuegros: padres de las parejas de los hijos del foco
-    const consuegrosIds = new Set<string>();
-    (focusPersonData?.children || []).forEach((childId: string) => {
-      const child = familyById.get(childId);
-      if (!child) return;
-      (child.partners || []).forEach((childPartnerId: string) => {
-        const childPartner = familyById.get(childPartnerId);
-        if (!childPartner) return;
-        (childPartner.parents || []).forEach((consuegrosId: string) => {
-          consuegrosIds.add(consuegrosId);
-          // También añadir parejas de los consuegros
-          const consuegro = familyById.get(consuegrosId);
-          if (consuegro?.partners) {
-            consuegro.partners.forEach((pid: string) => consuegrosIds.add(pid));
-          }
-        });
-      });
-    });
 
     const childrenById = new Map<string, string[]>();
     const partnersById = new Map<string, string[]>();
@@ -436,12 +418,6 @@ export const FamilyTree: React.FC = () => {
       // Si no debemos aplicar separación de familias, todo va al centro
       if (!shouldApplyFamilySeparation) return 'center';
 
-      // Consuegros: solo separar a la izquierda si el foco tiene sus propios padres
-      // Si el foco no tiene padres, mantener consuegros en el centro para layout simétrico
-      const isConsuegro = item.members.some(m => consuegrosIds.has(m));
-      if (isConsuegro) {
-        return focusHasParentsInTree ? 'left' : 'center';
-      }
 
       const inLeft = item.members.some(m => leftFamily.has(m));
       const inRight = item.members.some(m => rightFamily.has(m));
@@ -512,10 +488,6 @@ export const FamilyTree: React.FC = () => {
         }
       }
 
-      // 3. Consuegros: solo separar si el foco tiene sus propios padres en el árbol
-      if (rel === 'Consuegro' || rel === 'Consuegra') {
-        side = focusHasParentsInTree ? 'left' : 'center';
-      }
 
       if (item.kind === 'person') {
         const parentContainerId = getParentContainerId(item.personParents);
