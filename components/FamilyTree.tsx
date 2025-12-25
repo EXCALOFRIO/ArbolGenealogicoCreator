@@ -1,14 +1,29 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
-import { ReactFlow, Background, Edge, Node, useReactFlow } from '@xyflow/react';
+import { ReactFlow, Background, Edge, Node, useReactFlow, ConnectionLineType } from '@xyflow/react';
 import { toPng } from 'html-to-image';
 import { useFamilyLogic } from '../hooks/useFamilyLogic';
 import { PersonNode } from './PersonNode';
 import { CoupleNode } from './CoupleNode';
 import { useFamilyStore } from '../store/familyStore';
 
+const BackgroundNode = React.memo(({ data }: any) => {
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        backgroundColor: data.color || 'rgba(0,0,0,0.05)',
+        borderRadius: 24,
+        border: `2px solid ${data.borderColor || 'transparent'}`,
+      }}
+    />
+  );
+});
+
 const nodeTypes = {
   person: PersonNode,
   couple: CoupleNode,
+  background: BackgroundNode,
 };
 
 // Componente interno para manejar el centrado
@@ -614,378 +629,139 @@ export const FamilyTree: React.FC = () => {
       }
     };
 
-    // 3. Posicionamiento por generación:
-    // - Los hermanos (mismos padres) se centran como grupo bajo el centro del matrimonio
-    // - Las parejas "mixtas" (cada uno con suegros distintos) se colocan entre ambos lados
-    const gens = [...new Set(nodeItems.map(n => n.gen))].sort((a, b) => a - b);
+    // 3. RECURSIVE LAYOUT LOGIC (Bottom-Up)
+    const processedNodes = new Set<string>();
 
-    const resolveOverlaps = (items: { id: string; width: number; desiredLeft: number }[]) => {
-      // Orden estable por posición deseada
-      items.sort((a, b) => a.desiredLeft - b.desiredLeft);
-      const lefts = items.map(i => i.desiredLeft);
+    interface LayoutResult {
+      width: number;
+      center: number;
+      nodes: Node[];
+      itemIds: string[]; // IDs de las personas/parejas en esta rama
+    }
 
-      // Helper para saber el gap exacto entre item[i-1] e item[i]
-      const getGap = (idx: number) => {
-        const prev = nodeById.get(items[idx - 1].id);
-        const curr = nodeById.get(items[idx].id);
-
-        if (!prev || !curr) return FAMILY_GAP;
-
-        // Comprobar si comparten padres (hermanos)
-        const prevP = prev.kind === 'person' ? prev.personParents : prev.p1Parents;
-        const currP = curr.kind === 'person' ? curr.personParents : curr.p1Parents;
-
-        // Si ambos tienen los mismos padres definidos, son hermanos.
-        if (prevP && currP && prevP.length > 0 && currP.length > 0) {
-          const pPKey = prevP.sort().join('|');
-          const cPKey = currP.sort().join('|');
-          if (pPKey === cPKey) return SIBLING_GAP;
-        }
-
-        return FAMILY_GAP;
-      };
-
-      // forward
-      for (let i = 1; i < items.length; i++) {
-        const gap = getGap(i);
-        const minLeft = lefts[i - 1] + items[i - 1].width + gap;
-        if (lefts[i] < minLeft) lefts[i] = minLeft;
-      }
-      // backward
-      for (let i = items.length - 2; i >= 0; i--) {
-        const gap = getGap(i + 1);
-        const maxLeft = lefts[i + 1] - items[i].width - gap;
-        if (lefts[i] > maxLeft) lefts[i] = maxLeft;
-      }
-      // forward de nuevo (por seguridad)
-      for (let i = 1; i < items.length; i++) {
-        const gap = getGap(i);
-        const minLeft = lefts[i - 1] + items[i - 1].width + gap;
-        if (lefts[i] < minLeft) lefts[i] = minLeft;
-      }
-
-      return items.map((it, idx) => ({ ...it, left: lefts[idx] }));
+    // Identificar qué nodos (NodeItems) son "raíces" (no tienen padres en el árbol visible)
+    const getRoots = (): NodeItem[] => {
+      return nodeItems.filter(item => {
+        const parents = item.kind === 'person' ? item.personParents : item.p1Parents;
+        if (!parents || parents.length === 0) return true;
+        return !parents.some(pId => personToContainer.has(pId));
+      });
     };
 
-    gens.forEach((gen, genIdx) => {
-      const row = nodeItems.filter(n => n.gen === gen);
-      if (row.length === 0) return;
-
-      // Antes de calcular posiciones, ordena parejas según dónde caen sus padres
-      // (así la familia de Raquel queda a la izquierda si está a la izquierda)
-      row.forEach(it => ensureCoupleOrderByParents(it));
-
-      // 1) Preparar grupos por padres (solo cuando hay una pareja de padres clara)
-      const groups = new Map<string, NodeItem[]>();
-      const ungrouped: NodeItem[] = [];
-
-      const getGroupKey = (item: NodeItem): string | null => {
-        // --- ACTUALIZACIÓN: CLUSTER CENTRAL UNIVERSAL ---
-        // Esto agrupa a la pareja principal y sus hermanos en una sola fila compacta
-        // en CUALQUIER generación, no solo en la -1.
-        if (sideOfItem(item) === 'center') {
-          return `GEN_${gen}_CENTER_CLUSTER`;
-        }
-        // ------------------------------------------
-
-        if (item.kind === 'person') {
-          const key = parentPairKey(item.personParents);
-          if (key) return key;
-          // Si solo tiene un padre, buscar si ese padre tiene pareja y formar la clave con ambos
-          if (item.personParents && item.personParents.length === 1) {
-            const singleParentId = item.personParents[0];
-            const singleParent = familyById.get(singleParentId);
-            if (singleParent?.partners?.length > 0) {
-              // Usar la primera pareja para formar el grupo
-              const partnerId = singleParent.partners[0];
-              const pairKey = [singleParentId, partnerId].sort().join('|');
-              return pairKey;
-            }
-            return `single:${singleParentId}`;
-          }
-          return null;
-        }
-
-        // pareja
-        const k1 = parentPairKey(item.p1Parents);
-        const k2 = parentPairKey(item.p2Parents);
-        if (k1 && k2 && k1 !== k2) return `mixed:${k1}::${k2}`;
-        return k1 || k2 || null;
-      };
-
-      row.forEach(item => {
-        const key = getGroupKey(item);
-        if (!key || key.startsWith('mixed:')) {
-          ungrouped.push(item);
-          return;
-        }
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key)!.push(item);
+    // Obtener los hijos directos de un NodeItem
+    const getChildrenOf = (itemId: string): NodeItem[] => {
+      const item = nodeById.get(itemId);
+      if (!item) return [];
+      const childrenIds = new Set<string>();
+      item.members.forEach(mId => {
+        const p = familyById.get(mId);
+        if (p?.children) p.children.forEach((cId: string) => childrenIds.add(cId));
       });
 
-      // 2) Calcular desiredLeft para cada item
-      const desired: { id: string; width: number; desiredLeft: number }[] = [];
-
-      // A) Grupos
-      const sortedGroupKeys = Array.from(groups.keys()).sort((keyA, keyB) => {
-        // El cluster central siempre tiene prioridad o se trata neutro
-        if (keyA.includes('_CENTER_CLUSTER')) return 0;
-        if (keyB.includes('_CENTER_CLUSTER')) return 0;
-
-        let centerA = 0;
-        let centerB = 0;
-
-        if (keyA.startsWith('single:')) {
-          const pid = keyA.replace('single:', '');
-          const containerId = personToContainer.get(pid);
-          if (containerId) centerA = getNodeCenter(containerId) || 0;
-        } else {
-          const [pa, pb] = keyA.split('|');
-          centerA = getParentCoupleCenter([pa, pb]) || 0;
-        }
-
-        if (keyB.startsWith('single:')) {
-          const pid = keyB.replace('single:', '');
-          const containerId = personToContainer.get(pid);
-          if (containerId) centerB = getNodeCenter(containerId) || 0;
-        } else {
-          const [pa, pb] = keyB.split('|');
-          centerB = getParentCoupleCenter([pa, pb]) || 0;
-        }
-
-        return centerA - centerB;
+      const childContainers = new Set<string>();
+      childrenIds.forEach(cId => {
+        const cIdContainer = personToContainer.get(cId);
+        if (cIdContainer) childContainers.add(cIdContainer);
       });
 
-      sortedGroupKeys.forEach((key) => {
-        const items = groups.get(key)!;
-        let anchorCenter: number | null = null;
+      return Array.from(childContainers)
+        .map(id => nodeById.get(id)!)
+        .filter(Boolean);
+    };
 
-        // --- ACTUALIZACIÓN: LÓGICA ESPECIAL PARA EL CLUSTER CENTRAL ---
-        if (key.includes('_CENTER_CLUSTER')) {
-          // CALCULAR ANCHOR DINÁMICO (Promedio de la posición de los padres)
-          const parentCenters: number[] = [];
-          items.forEach(it => {
-            const parents = it.kind === 'person' ? it.personParents : it.p1Parents;
-            if (parents && parents.length > 0) {
-              const cpKey = parentPairKey(parents);
-              if (cpKey) {
-                const cX = getParentCoupleCenter(cpKey.split('|'));
-                if (cX != null) parentCenters.push(cX);
-              } else {
-                const pId = parents[0];
-                const cId = personToContainer.get(pId);
-                if (cId) {
-                  const cX = getNodeCenter(cId);
-                  if (cX != null) parentCenters.push(cX);
-                }
-              }
-            }
+    // Función principal recursiva
+    const layoutFamilyBlock = (itemId: string, gen: number): LayoutResult => {
+      if (processedNodes.has(itemId)) {
+        return { width: 0, center: 0, nodes: [], itemIds: [] };
+      }
+      processedNodes.add(itemId);
+
+      const item = nodeById.get(itemId)!;
+      const children = getChildrenOf(itemId);
+
+      const itemIds: string[] = [itemId];
+
+      // A. Layout de los hijos (Recursivo)
+      let childrenBlock: LayoutResult | null = null;
+      if (children.length > 0) {
+        const childrenResults = children.map(child => layoutFamilyBlock(child.id, gen + 1));
+
+        let totalW = 0;
+        const nodes: Node[] = [];
+        const offsets: number[] = [];
+
+        childrenResults.forEach((res, i) => {
+          const gap = i > 0 ? SIBLING_GAP : 0;
+          offsets.push(totalW + gap + res.center);
+          res.nodes.forEach(n => {
+            n.position.x += totalW + gap;
+            nodes.push(n);
           });
-
-          if (parentCenters.length > 0) {
-            anchorCenter = parentCenters.reduce((a, b) => a + b, 0) / parentCenters.length;
-          } else {
-            // --- NUEVO: Centrar sobre los hijos si no hay padres biológicos conocidos en el árbol ---
-            // Esto arregla la posición de los bisabuelos y abuelos de ramas laterales
-            const childCenters: number[] = [];
-            items.forEach(it => {
-              it.members.forEach(mId => {
-                const children = childrenById.get(mId) || [];
-                children.forEach(cId => {
-                  const cContainerId = personToContainer.get(cId);
-                  if (cContainerId) {
-                    const cPos = getNodeCenter(cContainerId);
-                    if (cPos != null) childCenters.push(cPos);
-                  }
-                });
-              });
-            });
-
-            if (childCenters.length > 0) {
-              const uniqueChildCenters = Array.from(new Set(childCenters));
-              anchorCenter = uniqueChildCenters.reduce((a, b) => a + b, 0) / uniqueChildCenters.length;
-            } else {
-              anchorCenter = 0; // Fallback extremo
-            }
-          }
-        }
-        // -----------------------------------------------------
-        else if (key.startsWith('single:')) {
-          const pid = key.replace('single:', '');
-          const containerId = personToContainer.get(pid);
-          if (containerId) anchorCenter = getNodeCenter(containerId);
-        } else {
-          const [a, b] = key.split('|');
-          anchorCenter = getParentCoupleCenter([a, b]);
-        }
-        if (anchorCenter == null) {
-          anchorCenter = 0;
-        }
-
-        // Si solo hay un item, centrarlo exactamente bajo los padres
-        if (items.length === 1 && !key.includes('_CENTER_CLUSTER')) {
-          const it = items[0];
-          desired.push({ id: it.id, width: it.width, desiredLeft: anchorCenter - it.width / 2 });
-          return;
-        }
-
-        // Items en un mismo grupo comparten padres (o son cluster central), por lo que son "siblings" o cercanos.
-        // Usamos SIBLING_GAP para mantenerlos pegados.
-        const totalWidth = items.reduce((sum, it, i) => sum + it.width + (i > 0 ? SIBLING_GAP : 0), 0);
-        let x = anchorCenter - totalWidth / 2;
-        // Ordenar por side para que los de la izquierda queden a la izquierda
-        items
-          .slice()
-          .sort((a, b) => {
-            const sideA = sideOfItem(a);
-            const sideB = sideOfItem(b);
-            if (sideA === 'left' && sideB !== 'left') return -1;
-            if (sideA !== 'left' && sideB === 'left') return 1;
-            if (sideA === 'right' && sideB !== 'right') return 1;
-            if (sideA !== 'right' && sideB === 'right') return -1;
-
-            // Si el side es igual, usar el bias (importante para hermanos/cuñados)
-            const biasA = biasOfItem(a);
-            const biasB = biasOfItem(b);
-
-            // Esto asegura que el matrimonio (bias center) quede en medio de los hermanos (bias left/right)
-            const score = (bias: string) => bias === 'left' ? 0 : bias === 'center' ? 1 : 2;
-            const sA = score(biasA);
-            const sB = score(biasB);
-
-            if (sA !== sB) return sA - sB;
-
-            return a.id > b.id ? 1 : -1;
-          })
-          .forEach(it => {
-            desired.push({ id: it.id, width: it.width, desiredLeft: x });
-            x += it.width + SIBLING_GAP;
-          });
-      });
-
-      // B) No agrupados (incluye parejas mixtas): usar reglas por nodo
-      ungrouped
-        .sort((a, b) => {
-          // Ordenar no agrupados por el centro de sus padres para evitar cruces
-          const c1 = a.kind === 'person' ? getParentCoupleCenter(a.personParents) : getParentCoupleCenter(a.p1Parents);
-          const c2 = b.kind === 'person' ? getParentCoupleCenter(b.personParents) : getParentCoupleCenter(b.p1Parents);
-          return (c1 || 0) - (c2 || 0);
-        })
-        .forEach(it => {
-          let desiredLeft = 0;
-
-          if (it.kind === 'person') {
-            const c = getParentCoupleCenter(it.personParents);
-            desiredLeft = c != null ? c - it.width / 2 : 0;
-          } else {
-            // pareja: intentar alinear cada lado con sus suegros
-            const c1 = getParentCoupleCenter(it.p1Parents);
-            const c2 = getParentCoupleCenter(it.p2Parents);
-
-            const has1 = c1 != null && it.person1Id;
-            const has2 = c2 != null && it.person2Id;
-
-            if (has1 && has2 && parentPairKey(it.p1Parents) !== parentPairKey(it.p2Parents)) {
-              // mixto: colocar entre ambos
-              const left1 = (c1 as number) - COUPLE_WIDTH * 0.25;
-              const left2 = (c2 as number) - COUPLE_WIDTH * 0.75;
-              desiredLeft = (left1 + left2) / 2;
-            } else if (has1) {
-              desiredLeft = (c1 as number) - COUPLE_WIDTH * 0.25;
-            } else if (has2) {
-              desiredLeft = (c2 as number) - COUPLE_WIDTH * 0.75;
-            } else {
-              desiredLeft = 0;
-            }
-          }
-
-          desired.push({ id: it.id, width: it.width, desiredLeft });
+          totalW += gap + res.width;
+          itemIds.push(...res.itemIds);
         });
 
-      // Si estamos en la primera fila y todo es 0, distribuir y centrar
-      if (genIdx === 0) {
-        const allZero = desired.every(d => Math.abs(d.desiredLeft) < 1e-6);
-        if (allZero) {
-          // fallback generico: usar FAMILY_GAP por seguridad
-          const total = desired.reduce((sum, d, i) => sum + d.width + (i > 0 ? FAMILY_GAP : 0), 0);
-          let x = -total / 2;
-          desired
-            .sort((a, b) => {
-              const ia = nodeById.get(a.id);
-              const ib = nodeById.get(b.id);
-              const sa = ia ? biasOfItem(ia) : 'center';
-              const sb = ib ? biasOfItem(ib) : 'center';
-              const order = (s: string) => (s === 'left' ? 0 : s === 'center' ? 1 : 2);
-              const da = order(sa);
-              const db = order(sb);
-              if (da !== db) return da - db;
-              return a.id > b.id ? 1 : -1;
-            })
-            .forEach(d => {
-              d.desiredLeft = x;
-              x += d.width + FAMILY_GAP;
-            });
+        childrenBlock = {
+          width: totalW,
+          center: (offsets[0] + offsets[offsets.length - 1]) / 2,
+          nodes,
+          itemIds
+        };
+      }
+
+      // B. El item actual
+      const selfWidth = item.width;
+      const selfCenter = selfWidth / 2;
+      const selfNode = { ...item.node, position: { x: 0, y: gen * VERTICAL_SPACING } };
+
+      // C. Alineación
+      let width = selfWidth;
+      let center = selfCenter;
+      const resultNodes: Node[] = [selfNode];
+
+      if (childrenBlock) {
+        const diff = selfCenter - childrenBlock.center;
+
+        if (diff > 0) {
+          childrenBlock.nodes.forEach(n => n.position.x += diff);
+          width = Math.max(selfWidth, childrenBlock.width + diff);
+        } else {
+          selfNode.position.x += Math.abs(diff);
+          width = Math.max(childrenBlock.width, selfWidth + Math.abs(diff));
+          center = childrenBlock.center;
         }
+        resultNodes.push(...childrenBlock.nodes);
       }
 
-      // 3) Resolver solapes y asignar posiciones - SEPARANDO POR FAMILIAS
-      // const FAMILY_GAP = 240; // REMOVED local shadow
-      const desiredLeftSeg = desired.filter(d => {
-        const it = nodeById.get(d.id);
-        return it ? sideOfItem(it) === 'left' : false;
+      return { width, center, nodes: resultNodes, itemIds };
+    };
+
+    // Como hay múltiples ramas (paterna/materna), procesamos cada raíz
+    const roots = getRoots();
+    let globalX = 0;
+
+    // Almacenamos resultados para crear fondos después
+    const branchResults: LayoutResult[] = [];
+
+    roots.forEach((root, i) => {
+      const res = layoutFamilyBlock(root.id, root.gen);
+      const gap = i > 0 ? FAMILY_GAP : 0;
+      res.nodes.forEach(n => {
+        n.position.x += globalX + gap;
+        flowNodes.push(n);
       });
-      const desiredCenterSeg = desired.filter(d => {
-        const it = nodeById.get(d.id);
-        return it ? sideOfItem(it) === 'center' : true;
-      });
-      const desiredRightSeg = desired.filter(d => {
-        const it = nodeById.get(d.id);
-        return it ? sideOfItem(it) === 'right' : false;
-      });
-
-      const placedLeft = desiredLeftSeg.length ? resolveOverlaps(desiredLeftSeg) : [];
-      const placedCenter = desiredCenterSeg.length ? resolveOverlaps(desiredCenterSeg) : [];
-      const placedRight = desiredRightSeg.length ? resolveOverlaps(desiredRightSeg) : [];
-
-      const extent = (arr: { left: number; width: number }[]) => {
-        if (!arr.length) return { min: 0, max: 0, empty: true };
-        const min = Math.min(...arr.map(a => a.left));
-        const max = Math.max(...arr.map(a => a.left + a.width));
-        return { min, max, empty: false };
-      };
-
-      const eCenter = extent(placedCenter);
-      const centerMin = eCenter.empty ? 0 : eCenter.min;
-      const centerMax = eCenter.empty ? 0 : eCenter.max;
-
-      const eLeft = extent(placedLeft);
-      if (!eLeft.empty) {
-        const shiftLeft = (centerMin - FAMILY_GAP) - eLeft.max;
-        placedLeft.forEach(p => (p.left += shiftLeft));
-      }
-
-      const eRight = extent(placedRight);
-      if (!eRight.empty) {
-        const shiftRight = (centerMax + FAMILY_GAP) - eRight.min;
-        placedRight.forEach(p => (p.left += shiftRight));
-      }
-
-      const placed = [...placedLeft, ...placedCenter, ...placedRight];
-
-      placed.forEach(p => {
-        const item = nodeById.get(p.id);
-        if (!item) return;
-        item.node.position.x = p.left;
-        const y = item.gen * VERTICAL_SPACING;
-        nodePositions.set(item.id, { x: p.left, y, width: item.width });
-        item.members.forEach(pid => {
-          nodePositions.set(pid, { x: p.left, y, width: item.width });
-        });
-      });
+      res.center += globalX + gap;
+      globalX += gap + res.width;
+      branchResults.push(res);
     });
 
-    // Agregar todos los nodos
-    nodeItems.forEach(item => flowNodes.push(item.node));
+    // --- REFINAMIENTO: Centrar todo el árbol respecto al origen ---
+    if (flowNodes.length > 0) {
+      const minX = Math.min(...flowNodes.map(n => n.position.x));
+      const maxX = Math.max(...flowNodes.map(n => n.position.x + (n.type === 'couple' ? COUPLE_WIDTH : SINGLE_WIDTH)));
+      const centerX = (minX + maxX) / 2;
+      flowNodes.forEach(n => n.position.x -= centerX);
+    }
 
     // 4. Crear conexiones - evitar duplicados cuando ambos padres de un couple apuntan al mismo hijo
     const addedEdges = new Set<string>();
@@ -1077,8 +853,10 @@ export const FamilyTree: React.FC = () => {
         zoomOnDoubleClick={true}
         preventScrolling={true}
         fitViewOptions={{ padding: 0.4, duration: 400 }}
+        connectionLineType={ConnectionLineType.SmoothStep}
         defaultEdgeOptions={{
           type: 'smoothstep',
+          pathOptions: { borderRadius: 0 },
           style: { stroke: '#64748b', strokeWidth: 2 },
         }}
         proOptions={{ hideAttribution: true }}
