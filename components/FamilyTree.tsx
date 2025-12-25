@@ -459,6 +459,39 @@ export const FamilyTree: React.FC = () => {
             ? 'Sibling'
             : null;
 
+      // GENERACIÓN -1: mantener al padre/madre del foco en el centro,
+      // y empujar tíos/tías a los lados según género (tías a la izquierda).
+      // Esto reduce cruces cuando hay tíos + parejas de tíos.
+      if (item.gen === -1) {
+        const rel2 = item.kind === 'person'
+          ? d?.relationType
+          : (d?.person1?.relationType === 'Uncle/Aunt' || d?.person2?.relationType === 'Uncle/Aunt')
+            ? 'Uncle/Aunt'
+            : (d?.person1?.relationType === 'UnclePartner' || d?.person2?.relationType === 'UnclePartner')
+              ? 'UnclePartner'
+              : null;
+
+        if (rel2 === 'Parent') return 'center';
+
+        // Para parejas de tíos, decidir por el miembro que es tío/tía (no la pareja política)
+        if (rel2 === 'Uncle/Aunt') {
+          if (item.kind === 'person') {
+            const p = familyById.get(item.personId);
+            return p?.gender === 'Female' ? 'left' : 'right';
+          }
+
+          if (item.kind === 'couple') {
+            const p1Rel = d?.person1?.relationType;
+            const p2Rel = d?.person2?.relationType;
+            const bloodId = p1Rel === 'Uncle/Aunt'
+              ? item.person1Id
+              : (p2Rel === 'Uncle/Aunt' ? item.person2Id : item.person1Id);
+            const blood = bloodId ? familyById.get(bloodId) : null;
+            return blood?.gender === 'Female' ? 'left' : 'right';
+          }
+        }
+      }
+
       if (item.gen === 0 && rel === 'PartnerSibling') return 'left';
       if (item.gen === 0 && rel === 'Sibling') return 'right';
 

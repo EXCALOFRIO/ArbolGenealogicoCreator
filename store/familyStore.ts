@@ -6,6 +6,7 @@ interface FamilyState {
   focusId: string;
   // Raíz estable de la vista/layout. No cambia al seleccionar otra persona.
   viewRootId: string;
+  viewMode: 'tree' | 'list';
   isModalOpen: boolean;
   modalContext: RelationContext;
   editingPerson: Person | null;
@@ -25,6 +26,7 @@ interface FamilyState {
   
   setFocusId: (id: string) => void;
   setViewRootId: (id: string) => void;
+  setViewMode: (mode: 'tree' | 'list') => void;
   openAddModal: (context: RelationContext) => void;
   openEditModal: (person: Person) => void;
   closeAddModal: () => void;
@@ -42,6 +44,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   people: [],
   focusId: '',
   viewRootId: '',
+  viewMode: 'tree',
   isModalOpen: false,
   modalContext: 'None',
   editingPerson: null,
@@ -231,6 +234,8 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   })),
 
   setViewRootId: (id) => set({ viewRootId: id }),
+
+  setViewMode: (mode) => set({ viewMode: mode }),
   
   openAddModal: (context) => set({ isModalOpen: true, modalContext: context, editingPerson: null }),
   openEditModal: (person) => set({ isModalOpen: true, modalContext: 'None', editingPerson: person }),
@@ -321,9 +326,89 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     // Update the existing person to include the relationship
     const updatedFocusPerson = { ...focusPerson };
 
+    let nextViewRootId = state.viewRootId;
+
+    const addUnique = (arr: string[], id: string) => {
+      if (!arr.includes(id)) arr.push(id);
+    };
+
+    const uniq = (arr: string[]) => Array.from(new Set(arr));
+
+    const collectSiblingGroupIds = (startId: string, people: Person[]): string[] => {
+      const byId = new Map(people.map(p => [p.id, p] as const));
+      const reverseSibs = new Map<string, string[]>();
+      people.forEach(p => {
+        (p.siblings || []).forEach(sibId => {
+          const list = reverseSibs.get(sibId) || [];
+          list.push(p.id);
+          reverseSibs.set(sibId, list);
+        });
+      });
+
+      const out = new Set<string>();
+      const q: string[] = [startId];
+      out.add(startId);
+
+      for (let i = 0; i < q.length; i++) {
+        const id = q[i];
+        const p = byId.get(id);
+        if (!p) continue;
+
+        const neighbors = new Set<string>();
+        (p.siblings || []).forEach(sid => neighbors.add(sid));
+        (reverseSibs.get(id) || []).forEach(sid => neighbors.add(sid));
+
+        // Si ya existen padres, también considerar hermanos por padres compartidos
+        if ((p.parents || []).length > 0) {
+          people.forEach(other => {
+            if (other.id === id) return;
+            if (other.parents?.some(pid => (p.parents || []).includes(pid))) neighbors.add(other.id);
+          });
+        }
+
+        neighbors.forEach(nid => {
+          if (!nid || nid === id) return;
+          if (!out.has(nid)) {
+            out.add(nid);
+            q.push(nid);
+          }
+        });
+      }
+
+      return Array.from(out);
+    };
+
     if (context === 'Parent') {
       updatedFocusPerson.parents = [...updatedFocusPerson.parents, newPerson.id];
-      newPerson.children = [focusId];
+
+      // Si el foco tiene hermanos (aunque no haya madre/padre aún), el nuevo progenitor
+      // debe aplicarse a todo el grupo para mantener el árbol conectado y visible.
+      const siblingGroup = collectSiblingGroupIds(focusId, updatedPeople);
+
+      // Inicializar children del nuevo progenitor con todo el grupo (sin duplicados)
+      newPerson.children = uniq([...(newPerson.children || []), ...siblingGroup]);
+
+      siblingGroup.forEach(memberId => {
+        if (memberId === newPerson.id) return;
+        const member = updatedPeople.find(p => p.id === memberId);
+        if (!member) return;
+
+        member.parents = [...(member.parents || [])];
+
+        // No forzar si ya tiene 2 padres; pero sí si aún cabe.
+        if (!member.parents.includes(newPerson.id) && member.parents.length < 2) {
+          member.parents.push(newPerson.id);
+        }
+
+        // El progenitor debe tener a todos como hijos
+        addUnique(newPerson.children, memberId);
+      });
+
+      // Si estás editando a alguien que no es la raíz actual del layout,
+      // cambia la raíz a esa persona para que sus padres se vean (familia directa).
+      if (state.viewRootId && state.viewRootId !== focusId) {
+        nextViewRootId = focusId;
+      }
     } 
     else if (context === 'Child') {
       updatedFocusPerson.children = [...updatedFocusPerson.children, newPerson.id];
@@ -400,6 +485,6 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     // Replace the focus person in the array with the updated version
     const finalPeople = updatedPeople.map(p => p.id === focusId ? updatedFocusPerson : p);
 
-    return { people: finalPeople };
+    return { people: finalPeople, viewRootId: nextViewRootId };
   }),
 }));

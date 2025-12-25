@@ -6,7 +6,7 @@ import { Person, Gender } from '../types';
 import { useTutorial } from '../hooks/useTutorial';
 
 export const Controls: React.FC = () => {
-  const { people, focusId, getPerson, setFocusId, isModalOpen, modalContext, closeAddModal, addRelative, linkSiblings, editingPerson, updatePerson } = useFamilyStore();
+  const { people, focusId, getPerson, setFocusId, viewMode, setViewMode, isModalOpen, modalContext, closeAddModal, addRelative, linkSiblings, editingPerson, updatePerson } = useFamilyStore();
   const { isActive: tutorialActive, currentStep, goToStep } = useTutorial();
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -350,6 +350,24 @@ export const Controls: React.FC = () => {
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
             />
+
+            <button
+              type="button"
+              title={viewMode === 'tree' ? 'Cambiar a vista lista' : 'Cambiar a vista mapa'}
+              onClick={() => setViewMode(viewMode === 'tree' ? 'list' : 'tree')}
+              className="ml-2 text-slate-500 hover:text-white transition-colors"
+            >
+              {viewMode === 'tree' ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M10 14h10M10 18h10M4 14h4v4H4v-4z" />
+                </svg>
+              )}
+            </button>
+
             {searchTerm && (
               <button 
                 onClick={() => setSearchTerm('')}
