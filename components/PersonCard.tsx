@@ -46,12 +46,14 @@ export const PersonCard = forwardRef<HTMLDivElement, Props>(({ node }, ref) => {
       whileTap={{ scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       onClick={() => setFocusId(node.id)}
+      style={{
+        background: isFocus ? 'var(--card-bg)' : 'var(--card-bg)',
+        borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--card-border)'
+      }}
       className={`
         relative flex items-center pr-4 sm:pr-6 pl-1.5 sm:pl-2 py-1.5 sm:py-2 gap-2 sm:gap-4 rounded-full cursor-pointer 
         transition-all z-20 shadow-xl border backdrop-blur-sm
-        ${isFocus 
-          ? 'bg-gradient-to-r from-slate-800/95 to-slate-900/95 ring-2 ring-cyan-400/50 shadow-2xl shadow-cyan-500/20 border-cyan-500/30' 
-          : 'bg-slate-900/90 hover:bg-slate-800/95 border-slate-700/50 hover:border-slate-600/50 hover:shadow-2xl'}
+        ${isFocus ? 'ring-2 shadow-2xl' : 'hover:opacity-90 hover:shadow-2xl'}
       `}
     >
         {/* Avatar Circular con Color de Rama */}
@@ -69,17 +71,17 @@ export const PersonCard = forwardRef<HTMLDivElement, Props>(({ node }, ref) => {
 
         {/* Info Text */}
         <div className="flex flex-col min-w-0">
-            <span className={`text-[8px] sm:text-[10px] font-bold tracking-widest mb-0.5 ${isFocus ? 'text-cyan-400' : 'text-slate-500'}`}>
+            <span style={{ color: isFocus ? 'var(--accent-highlight)' : 'var(--app-text-muted)' }} className="text-[8px] sm:text-[10px] font-bold tracking-widest mb-0.5">
                 {label}
             </span>
-            <h3 className="text-xs sm:text-sm font-bold text-white leading-none whitespace-nowrap truncate">{node.name}</h3>
-            <p className="text-[8px] sm:text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-0.5 truncate">{node.surnames}</p>
+            <h3 style={{ color: 'var(--app-text)' }} className="text-xs sm:text-sm font-bold leading-none whitespace-nowrap truncate">{node.name}</h3>
+            <p style={{ color: 'var(--app-text-muted)' }} className="text-[8px] sm:text-[10px] font-medium uppercase tracking-wide mt-0.5 truncate">{node.surnames}</p>
         </div>
 
         {/* Focus indicator */}
         {isFocus && (
-          <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-cyan-400 rounded-full flex items-center justify-center shadow-lg shadow-cyan-400/50">
-            <svg className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-slate-900" fill="currentColor" viewBox="0 0 20 20">
+          <div style={{ background: 'var(--accent-highlight)' }} className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 rounded-full flex items-center justify-center shadow-lg">
+            <svg className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
           </div>

@@ -7,9 +7,12 @@ interface FamilyState {
   // Raíz estable de la vista/layout. No cambia al seleccionar otra persona.
   viewRootId: string;
   viewMode: 'tree' | 'list';
+  theme: 'dark' | 'light';
   isModalOpen: boolean;
   modalContext: RelationContext;
   editingPerson: Person | null;
+  isExporting: boolean;
+  setIsExporting: (isExporting: boolean) => void;
 
   exportRelationships: () => {
     version: 2;
@@ -23,20 +26,22 @@ interface FamilyState {
     people?: Record<string, { name?: string; surnames?: string; gender?: 'Male' | 'Female'; photo?: string }>;
     relationships: Record<string, { parents?: string[]; partners?: string[]; children?: string[]; siblings?: string[] }>;
   }) => void;
-  
+
   setFocusId: (id: string) => void;
   setViewRootId: (id: string) => void;
   setViewMode: (mode: 'tree' | 'list') => void;
+  setTheme: (theme: 'dark' | 'light') => void;
+  toggleTheme: () => void;
   openAddModal: (context: RelationContext) => void;
   openEditModal: (person: Person) => void;
   closeAddModal: () => void;
-  
+
   addPerson: (person: Person) => void;
   addRelative: (newPerson: Person, context: RelationContext) => void;
   linkSiblings: (aId: string, bId: string) => void;
   updatePerson: (person: Person) => void;
   deletePerson: (id: string) => void;
-  
+
   getPerson: (id: string) => Person | undefined;
 }
 
@@ -45,9 +50,23 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   focusId: '',
   viewRootId: '',
   viewMode: 'tree',
+  theme: (() => {
+    try {
+      const stored = window.localStorage.getItem('agc_theme');
+      if (stored === 'light' || stored === 'dark') return stored;
+      // Usar preferencia del sistema
+      if (window.matchMedia?.('(prefers-color-scheme: light)').matches) return 'light';
+      return 'dark';
+    } catch {
+      return 'dark';
+    }
+  })(),
   isModalOpen: false,
   modalContext: 'None',
   editingPerson: null,
+  isExporting: false,
+  setIsExporting: (isExporting) => set({ isExporting }),
+
 
   exportRelationships: () => {
     const people = get().people;
@@ -151,7 +170,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
         if (!other) return;
         addUnique(other.partners, p.id);
       });
-      
+
       // Siblings recíprocos
       (p.siblings || []).forEach(sibId => {
         const other = ensure(sibId);
@@ -236,7 +255,26 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
   setViewRootId: (id) => set({ viewRootId: id }),
 
   setViewMode: (mode) => set({ viewMode: mode }),
-  
+
+  setTheme: (theme) => {
+    try {
+      window.localStorage.setItem('agc_theme', theme);
+    } catch {
+      // ignore
+    }
+    set({ theme });
+  },
+
+  toggleTheme: () => {
+    const next = get().theme === 'dark' ? 'light' : 'dark';
+    try {
+      window.localStorage.setItem('agc_theme', next);
+    } catch {
+      // ignore
+    }
+    set({ theme: next });
+  },
+
   openAddModal: (context) => set({ isModalOpen: true, modalContext: context, editingPerson: null }),
   openEditModal: (person) => set({ isModalOpen: true, modalContext: 'None', editingPerson: person }),
   closeAddModal: () => set({ isModalOpen: false, modalContext: 'None', editingPerson: null }),
@@ -260,7 +298,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
         children: p.children.filter(pid => pid !== id),
         siblings: (p.siblings || []).filter(pid => pid !== id),
       }));
-    
+
     // Si eliminamos la persona en foco, cambiar a otra
     const fallbackId = newPeople[0]?.id || '';
     const newFocusId = state.focusId === id ? fallbackId : state.focusId;
@@ -322,7 +360,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     if (!focusPerson) return state;
 
     const updatedPeople = [...state.people, newPerson];
-    
+
     // Update the existing person to include the relationship
     const updatedFocusPerson = { ...focusPerson };
 
@@ -409,7 +447,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       if (state.viewRootId && state.viewRootId !== focusId) {
         nextViewRootId = focusId;
       }
-    } 
+    }
     else if (context === 'Child') {
       updatedFocusPerson.children = [...updatedFocusPerson.children, newPerson.id];
       newPerson.parents = [focusId];
@@ -422,7 +460,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
           partner.children = [...partner.children, newPerson.id];
         }
       }
-    } 
+    }
     else if (context === 'Partner') {
       updatedFocusPerson.partners = [...updatedFocusPerson.partners, newPerson.id];
       newPerson.partners = [focusId];
@@ -467,7 +505,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       // Update parents to include this new child
       updatedPeople.forEach(p => {
         if (updatedFocusPerson.parents.includes(p.id)) {
-           p.children = [...p.children, newPerson.id];
+          p.children = [...p.children, newPerson.id];
         }
       });
       // Also link to other siblings of focusPerson

@@ -208,7 +208,7 @@ export const DebugControls: React.FC = () => {
 
     return (
         <div className="fixed bottom-24 right-6 flex flex-col gap-2 z-[9999]">
-            <div className="text-xs text-slate-400 text-center mb-1">
+            <div style={{ color: 'var(--app-text-muted)' }} className="text-xs text-center mb-1">
                 🔧 Modo Debug (Ctrl+Shift+D)
             </div>
             <button

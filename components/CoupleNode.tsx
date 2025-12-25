@@ -66,72 +66,90 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false }: { person: R
   // Versión compacta para móvil
   if (compact) {
     return (
-      <div 
+      <div
         onClick={(e) => { e.stopPropagation(); onClick(); }}
+        style={{
+          background: isFocus ? 'var(--background-200)' : 'transparent'
+        }}
         className={`
           flex flex-1 min-w-0 flex-col items-center p-1.5 rounded-lg cursor-pointer transition-all duration-200
-          ${isFocus ? 'bg-white/10 scale-105' : 'hover:bg-white/5'}
+          ${isFocus ? 'scale-105' : 'hover:opacity-80'}
         `}
       >
         {person.photo ? (
-          <div className={`
-            w-8 h-8 rounded-full overflow-hidden shadow-md
-            ring-2 ${isFocus ? 'ring-cyan-400/60' : 'ring-black/30'}
-            transition-all duration-200
-          `}>
+          <div
+            style={{
+              borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
+              boxShadow: isFocus ? '0 0 10px rgba(104, 144, 156, 0.4)' : undefined
+            }}
+            className="w-8 h-8 rounded-full overflow-hidden shadow-md ring-2 transition-all duration-200"
+          >
             <img src={person.photo} alt="" className="w-full h-full object-cover" />
           </div>
         ) : (
-          <div className={`
-            w-8 h-8 rounded-full flex items-center justify-center 
-            text-xs font-bold shadow-md ${colors.bg} ${colors.text}
-            ring-2 ${isFocus ? 'ring-cyan-400/60' : 'ring-black/30'}
-            transition-all duration-200
-          `}>
+          <div
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-md ${colors.bg} ${colors.text} ring-2 transition-all duration-200`}
+            style={{
+              borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
+              boxShadow: isFocus ? '0 0 10px rgba(104, 144, 156, 0.4)' : undefined
+            }}
+          >
             {initials}
           </div>
         )}
-        <span className={`text-[6px] font-semibold tracking-wide mt-1 ${isFocus ? 'text-cyan-400' : 'text-slate-500'}`}>
+        <span
+          style={{ color: isFocus ? 'var(--accent-highlight)' : 'var(--app-text-subtle)' }}
+          className="text-[8px] font-semibold tracking-wide mt-1"
+        >
           {isFocus ? 'YO' : getRelationLabel(person.relationType, person.gender)}
         </span>
-        <h3 className="text-[8px] font-semibold text-white leading-tight text-center line-clamp-1">{person.name}</h3>
-        <p className="text-[7px] text-slate-500 text-center leading-tight line-clamp-1">{person.surnames}</p>
+        <h3 style={{ color: 'var(--app-text)' }} className="text-xs font-semibold leading-tight text-center line-clamp-1">{person.name}</h3>
+        <p style={{ color: 'var(--app-text-muted)' }} className="text-[10px] text-center leading-tight line-clamp-1">{person.surnames}</p>
       </div>
     );
   }
 
   // Versión normal para desktop
   return (
-    <div 
+    <div
       onClick={(e) => { e.stopPropagation(); onClick(); }}
+      style={{
+        background: isFocus ? 'var(--background-200)' : 'transparent'
+      }}
       className={`
         flex flex-1 min-w-0 flex-col items-center p-3 rounded-2xl cursor-pointer transition-all duration-200
-        ${isFocus ? 'bg-white/10 scale-105' : 'hover:bg-white/5'}
+        ${isFocus ? 'scale-105' : 'hover:opacity-80'}
       `}
     >
       {person.photo ? (
-        <div className={`
-          w-12 h-12 rounded-full overflow-hidden shadow-lg
-          ring-[3px] ${isFocus ? 'ring-cyan-400/60 shadow-cyan-500/30 shadow-lg' : 'ring-black/40'}
-          transition-all duration-200
-        `}>
+        <div
+          style={{
+            borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
+            boxShadow: isFocus ? '0 0 12px rgba(104, 144, 156, 0.4)' : undefined
+          }}
+          className="w-12 h-12 rounded-full overflow-hidden shadow-lg ring-[3px] transition-all duration-200"
+        >
           <img src={person.photo} alt="" className="w-full h-full object-cover" />
         </div>
       ) : (
-        <div className={`
-          w-12 h-12 rounded-full flex items-center justify-center 
-          text-base font-bold shadow-lg ${colors.bg} ${colors.text}
-          ring-[3px] ${isFocus ? 'ring-cyan-400/60 shadow-cyan-500/30 shadow-lg' : 'ring-black/40'}
-          transition-all duration-200
-        `}>
+        <div
+          className={`w-12 h-12 rounded-full flex items-center justify-center text-base font-bold shadow-lg ${colors.bg} ${colors.text} ring-[3px] transition-all duration-200`}
+          style={{
+            borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
+            boxShadow: isFocus ? '0 0 12px rgba(104, 144, 156, 0.4)' : undefined
+          }}
+        >
           {initials}
         </div>
       )}
-      <span className={`text-[8px] font-semibold tracking-wider mt-2 ${isFocus ? 'text-cyan-400' : 'text-slate-500'}`}>
+      <span
+        style={{ color: isFocus ? 'var(--accent-highlight)' : 'var(--app-text-subtle)' }}
+        className="text-[10px] font-semibold tracking-wider mt-2"
+      >
         {isFocus ? 'YO' : getRelationLabel(person.relationType, person.gender)}
       </span>
-      <h3 className="text-[11px] font-semibold text-white leading-tight text-center mt-0.5">{person.name}</h3>
-      <p className="text-[9px] text-slate-500 text-center leading-tight">{person.surnames}</p>
+      <h3 style={{ color: 'var(--app-text)' }} className="text-base font-semibold leading-tight text-center mt-0.5">{person.name}</h3>
+      <p style={{ color: 'var(--app-text-muted)' }} className="text-sm text-center leading-tight">{person.surnames}</p>
     </div>
   );
 };
@@ -140,7 +158,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
   const setFocusId = useFamilyStore(state => state.setFocusId);
   const focusId = useFamilyStore(state => state.focusId);
   const isMobile = useIsMobile();
-  
+
   const { person1, person2 } = data;
   const isFocus1 = person1.id === focusId;
   const isFocus2 = person2.id === focusId;
@@ -149,47 +167,48 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
   // Versión compacta para móvil
   if (isMobile) {
     return (
-      <div 
+      <div
+        style={{
+          background: 'var(--card-bg)',
+          borderColor: hasAnyFocus ? 'var(--accent-highlight)' : 'var(--card-border)',
+          boxShadow: hasAnyFocus ? '0 0 20px rgba(104, 144, 156, 0.3)' : undefined
+        }}
         className={`
-          relative flex w-[200px] items-center gap-0 rounded-xl p-1
+          relative flex w-[200px] items-center gap-0 rounded-xl p-1 border
           transition-all duration-300 ease-out
-          ${hasAnyFocus 
-            ? 'bg-gradient-to-br from-slate-800 to-slate-900 ring-2 ring-cyan-500/40 shadow-lg shadow-cyan-500/20' 
-            : 'bg-gradient-to-br from-slate-800/90 to-slate-900/95 border border-slate-700/40'}
+          ${hasAnyFocus ? 'ring-2' : 'hover:shadow-md'}
           backdrop-blur-xl
         `}
       >
-        <Handle 
-          type="target" 
-          position={Position.Top} 
-          id={`top-${person1.id}`} 
-          className="!bg-transparent !border-none" 
+        <Handle
+          type="target"
+          position={Position.Top}
+          id={`top-${person1.id}`}
+          className="!bg-transparent !border-none"
           style={{ left: '25%' }}
         />
-        <Handle 
-          type="target" 
-          position={Position.Top} 
-          id={`top-${person2.id}`} 
-          className="!bg-transparent !border-none" 
+        <Handle
+          type="target"
+          position={Position.Top}
+          id={`top-${person2.id}`}
+          className="!bg-transparent !border-none"
           style={{ left: '75%' }}
         />
-        <Handle 
-          type="source" 
-          position={Position.Bottom} 
-          className="!bg-transparent !border-none" 
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="!bg-transparent !border-none"
           style={{ left: '50%' }}
         />
 
         <PersonAvatar person={person1} onClick={() => setFocusId(person1.id)} isFocus={isFocus1} compact />
-        
-        <div className="flex items-center justify-center px-0 -mx-1">
-          <div className={`
-            w-5 h-5 rounded-full flex items-center justify-center
-            ${hasAnyFocus 
-              ? 'bg-gradient-to-br from-pink-500/30 to-rose-500/30' 
-              : 'bg-gradient-to-br from-pink-500/20 to-rose-500/20'}
-          `}>
-            <svg className={`w-2.5 h-2.5 ${hasAnyFocus ? 'text-pink-400' : 'text-pink-500/70'}`} fill="currentColor" viewBox="0 0 20 20">
+
+        <div className="flex items-center justify-center px-0 -mx-1 z-10">
+          <div
+            style={{ background: 'var(--heart-bg)' }}
+            className="w-5 h-5 rounded-full flex items-center justify-center shadow-sm"
+          >
+            <svg style={{ color: 'var(--heart-color)' }} className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
             </svg>
           </div>
@@ -202,51 +221,51 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
 
   // Versión normal para desktop
   return (
-    <div 
+    <div
+      style={{
+        background: 'var(--card-bg)',
+        borderColor: hasAnyFocus ? 'var(--accent-highlight)' : 'var(--card-border)',
+        boxShadow: hasAnyFocus ? '0 0 25px rgba(104, 144, 156, 0.35)' : undefined
+      }}
       className={`
-        relative flex w-[320px] items-center gap-0 rounded-[28px] p-1.5
+        relative flex w-[320px] items-center gap-0 rounded-[28px] p-1.5 border
         transition-all duration-300 ease-out
-        ${hasAnyFocus 
-          ? 'bg-gradient-to-br from-slate-800 to-slate-900 ring-2 ring-cyan-500/30 shadow-[0_0_30px_rgba(34,211,238,0.15)]' 
-          : 'bg-gradient-to-br from-slate-800/90 to-slate-900/95 hover:from-slate-750 border border-slate-700/40'}
+        ${hasAnyFocus ? 'ring-2' : 'hover:shadow-lg'}
         backdrop-blur-xl
       `}
     >
       {/* Handles específicos para cada persona en la pareja */}
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        id={`top-${person1.id}`} 
-        className="!bg-transparent !border-none" 
+      <Handle
+        type="target"
+        position={Position.Top}
+        id={`top-${person1.id}`}
+        className="!bg-transparent !border-none"
         style={{ left: '25%' }}
       />
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        id={`top-${person2.id}`} 
-        className="!bg-transparent !border-none" 
+      <Handle
+        type="target"
+        position={Position.Top}
+        id={`top-${person2.id}`}
+        className="!bg-transparent !border-none"
         style={{ left: '75%' }}
       />
       {/* Handle general para hijos (centro) */}
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        className="!bg-transparent !border-none" 
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!bg-transparent !border-none"
         style={{ left: '50%' }}
       />
 
       <PersonAvatar person={person1} onClick={() => setFocusId(person1.id)} isFocus={isFocus1} />
-      
+
       {/* Heart connector */}
-      <div className="flex flex-col items-center justify-center px-0 -mx-2">
-        <div className={`
-          w-7 h-7 rounded-full flex items-center justify-center
-          transition-all duration-300
-          ${hasAnyFocus 
-            ? 'bg-gradient-to-br from-pink-500/30 to-rose-500/30 ring-1 ring-pink-400/30' 
-            : 'bg-gradient-to-br from-pink-500/20 to-rose-500/20'}
-        `}>
-          <svg className={`w-3.5 h-3.5 transition-colors ${hasAnyFocus ? 'text-pink-400' : 'text-pink-500/70'}`} fill="currentColor" viewBox="0 0 20 20">
+      <div className="flex flex-col items-center justify-center px-0 -mx-2 z-10">
+        <div
+          style={{ background: 'var(--heart-bg)' }}
+          className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 shadow-md"
+        >
+          <svg style={{ color: 'var(--heart-color)' }} className="w-3.5 h-3.5 transition-colors" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
           </svg>
         </div>

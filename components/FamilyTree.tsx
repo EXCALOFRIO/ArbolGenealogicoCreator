@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { ReactFlow, Background, Edge, Node, useReactFlow } from '@xyflow/react';
+import { toPng } from 'html-to-image';
 import { useFamilyLogic } from '../hooks/useFamilyLogic';
 import { PersonNode } from './PersonNode';
 import { CoupleNode } from './CoupleNode';
@@ -46,7 +47,7 @@ const FlowContent: React.FC<{ nodes: Node[]; edges: Edge[]; focusId: string }> =
 
 export const FamilyTree: React.FC = () => {
   const familyNodes = useFamilyLogic();
-  const { focusId, viewRootId } = useFamilyStore();
+  const { focusId, viewRootId, theme, isExporting, setIsExporting } = useFamilyStore();
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   // Detectar móvil para ajustar tamaños
@@ -59,6 +60,53 @@ export const FamilyTree: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Efecto para manejar la exportación a imagen
+  useEffect(() => {
+    if (isExporting) {
+      const performExport = async () => {
+        // 1. Centrar el árbol
+        fitView({ duration: 400, padding: 0.1 });
+
+        // 2. Esperar a que el UI se oculte y la animación termine
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        const element = document.querySelector('.react-flow') as HTMLElement;
+        if (element) {
+          try {
+            // 3. Generar la imagen con alta calidad
+            const dataUrl = await toPng(element, {
+              backgroundColor: theme === 'dark' ? '#0e100a' : '#f4f5ef',
+              pixelRatio: 3, // Muy alta calidad
+              filter: (node) => {
+                // Ocultar elementos innecesarios en la foto
+                const exclusionClasses = [
+                  'react-flow__controls',
+                  'react-flow__attribution',
+                  'react-flow__minimize'
+                ];
+                return !exclusionClasses.some(cls => node.classList?.contains(cls));
+              }
+            });
+
+            // 4. Descargar
+            const link = document.createElement('a');
+            link.download = `mi-arbol-genealogico-${new Date().getTime()}.png`;
+            link.href = dataUrl;
+            link.click();
+          } catch (err) {
+            console.error('Error al exportar imagen:', err);
+            alert('Error al generar la imagen. Inténtalo de nuevo.');
+          }
+        }
+
+        // 5. Restaurar el UI
+        setIsExporting(false);
+      };
+
+      performExport();
+    }
+  }, [isExporting, fitView, theme, setIsExporting]);
 
   const { nodes, edges } = useMemo(() => {
     const flowNodes: Node[] = [];
@@ -220,7 +268,7 @@ export const FamilyTree: React.FC = () => {
         rightRootPersonId = focusPerson?.id || null;
       }
     }
-    
+
     // Si no hay pareja pero hay padres, usar los padres para determinar lados
     if (!leftRootPersonId && !rightRootPersonId && focusPersonData?.parents?.length >= 1) {
       const parentIds = focusPersonData.parents;
@@ -366,10 +414,10 @@ export const FamilyTree: React.FC = () => {
 
     // Detectar si el foco tiene padres en el árbol (para decidir si separar consuegros o no)
     const focusHasParentsInTree = (focusPersonData?.parents || []).some((pid: string) => familyById.has(pid));
-    
+
     // Detectar si el foco tiene hijos (para decidir si aplicar separación de familias)
     const focusHasChildrenInTree = (focusPersonData?.children || []).some((cid: string) => familyById.has(cid));
-    
+
     // Solo aplicar separación izq/der cuando el foco tiene pareja Y tiene hijos/padres
     // Esto evita cambios drásticos cuando seleccionas a un abuelo
     const shouldApplyFamilySeparation = focusContainerItem?.kind === 'couple' && (focusHasChildrenInTree || focusHasParentsInTree);
@@ -378,17 +426,17 @@ export const FamilyTree: React.FC = () => {
     const sideOfItemBase = (item: NodeItem): FamilySide => {
       if (item.id === focusContainerId) return 'center';
       if (item.members.includes(layoutRootId)) return 'center';
-      
+
       // Si no debemos aplicar separación de familias, todo va al centro
       if (!shouldApplyFamilySeparation) return 'center';
-      
+
       // Consuegros: solo separar a la izquierda si el foco tiene sus propios padres
       // Si el foco no tiene padres, mantener consuegros en el centro para layout simétrico
       const isConsuegro = item.members.some(m => consuegrosIds.has(m));
       if (isConsuegro) {
         return focusHasParentsInTree ? 'left' : 'center';
       }
-      
+
       const inLeft = item.members.some(m => leftFamily.has(m));
       const inRight = item.members.some(m => rightFamily.has(m));
       if (inLeft && !inRight) return 'left';
@@ -430,7 +478,7 @@ export const FamilyTree: React.FC = () => {
       if (item.gen === 0 && (rel === 'Sibling' || rel === 'PartnerSibling')) {
         side = 'center';
       }
-      
+
       // Consuegros: solo separar si el foco tiene sus propios padres en el árbol
       if (rel === 'Consuegro' || rel === 'Consuegra') {
         side = focusHasParentsInTree ? 'left' : 'center';
@@ -476,7 +524,7 @@ export const FamilyTree: React.FC = () => {
         // Para parejas de tíos, decidir por el miembro que es tío/tía (no la pareja política)
         if (rel2 === 'Uncle/Aunt') {
           if (item.kind === 'person') {
-            const p = familyById.get(item.personId);
+            const p = familyById.get(item.members[0]);
             return p?.gender === 'Female' ? 'left' : 'right';
           }
 
@@ -943,13 +991,13 @@ export const FamilyTree: React.FC = () => {
   }, [familyNodes, viewRootId, isMobile]);
 
   return (
-    <div className="w-full h-screen relative bg-slate-950 touch-none">
+    <div style={{ background: 'var(--app-bg)' }} className="w-full h-screen relative touch-none">
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         fitView
-        colorMode="dark"
+        colorMode={theme === 'dark' ? 'dark' : 'light'}
         minZoom={0.2}
         maxZoom={2}
         nodesDraggable={true}
@@ -969,36 +1017,51 @@ export const FamilyTree: React.FC = () => {
         proOptions={{ hideAttribution: true }}
       >
         <FlowContent nodes={nodes} edges={edges} focusId={focusId} />
-        <Background color="#334155" gap={40} size={1} />
+        <Background color="var(--dot-color)" gap={40} size={1} />
       </ReactFlow>
 
-      {/* Floating View Controls */}
-      <div className="fixed bottom-6 left-6 z-50 flex flex-col gap-2">
+      {/* Botones de zoom/centrar */}
+      <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-10">
         <button
-          onClick={() => fitView({ duration: 800, padding: 0.2 })}
-          className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 p-3 rounded-xl text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 shadow-xl transition-all"
-          title="Centrar árbol"
+          onClick={() => zoomIn()}
+          style={{
+            background: 'var(--card-bg)',
+            borderColor: 'var(--card-border)',
+            color: 'var(--app-text)'
+          }}
+          className="p-2.5 rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80"
+          title="Acercar"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
           </svg>
         </button>
         <button
-          onClick={() => zoomIn({ duration: 300 })}
-          className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 p-3 rounded-xl text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 shadow-xl transition-all"
-          title="Aumentar zoom"
+          onClick={() => zoomOut()}
+          style={{
+            background: 'var(--card-bg)',
+            borderColor: 'var(--card-border)',
+            color: 'var(--app-text)'
+          }}
+          className="p-2.5 rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80"
+          title="Alejar"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18 12H6" />
           </svg>
         </button>
         <button
-          onClick={() => zoomOut({ duration: 300 })}
-          className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 p-3 rounded-xl text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 shadow-xl transition-all"
-          title="Reducir zoom"
+          onClick={() => fitView({ padding: 0.4, duration: 400 })}
+          style={{
+            background: 'var(--card-bg)',
+            borderColor: 'var(--card-border)',
+            color: 'var(--app-text)'
+          }}
+          className="p-2.5 rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80"
+          title="Centrar todo"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
           </svg>
         </button>
       </div>

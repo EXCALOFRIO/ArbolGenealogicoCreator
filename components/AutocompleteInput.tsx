@@ -73,17 +73,22 @@ export const AutocompleteInput: React.FC<Props> = ({ value, onChange, suggestion
   };
 
   return (
-    <div className="flex flex-col gap-1.5 relative" ref={wrapperRef} data-tutorial={dataTutorial}>
-      <label className="text-[11px] text-slate-400 font-medium">{label}</label>
+    <div className="flex flex-col gap-2 relative" ref={wrapperRef} data-tutorial={dataTutorial}>
+      <label style={{ color: 'var(--app-text)' }} className="text-xs sm:text-sm font-black opacity-90 uppercase tracking-widest">{label}</label>
       <input
         type="text"
+        style={{
+          background: 'var(--input-bg)',
+          borderColor: isFocused ? 'var(--accent-highlight)' : 'var(--input-border)',
+          color: 'var(--app-text)'
+        }}
         className={`
-          bg-slate-800/50 border rounded-xl px-4 py-3 text-white text-sm
+          border rounded-2xl px-5 py-4 
+          text-base sm:text-lg font-medium
           focus:outline-none transition-all duration-200
-          placeholder-slate-500
-          ${isFocused 
-            ? 'border-cyan-500/50 ring-2 ring-cyan-500/20' 
-            : 'border-slate-700 hover:border-slate-600'}
+          ${isFocused
+            ? 'ring-2 ring-opacity-20'
+            : 'hover:opacity-95'}
         `}
         value={value}
         onChange={handleInput}
@@ -92,11 +97,21 @@ export const AutocompleteInput: React.FC<Props> = ({ value, onChange, suggestion
         placeholder={placeholder}
       />
       {isOpen && filtered.length > 0 && (
-        <ul className="absolute top-full left-0 right-0 bg-slate-800 border border-slate-700 rounded-xl mt-1 z-50 max-h-40 overflow-y-auto shadow-xl overflow-hidden">
+        <ul
+          style={{
+            background: 'var(--menu-bg)',
+            borderColor: 'var(--menu-border)'
+          }}
+          className="absolute top-full left-0 right-0 border rounded-2xl mt-2 z-50 max-h-60 overflow-y-auto shadow-2xl overflow-hidden"
+        >
           {filtered.map((suggestion, idx) => (
-            <li 
+            <li
               key={idx}
-              className="px-4 py-2.5 hover:bg-slate-700 cursor-pointer text-sm text-slate-300 hover:text-white transition-colors border-b border-slate-700/50 last:border-0"
+              style={{
+                color: 'var(--app-text)',
+                borderColor: 'var(--card-border)'
+              }}
+              className="px-5 py-3.5 cursor-pointer text-base sm:text-lg font-medium transition-colors border-b last:border-0 hover:opacity-80"
               onClick={() => selectSuggestion(suggestion)}
             >
               {suggestion}

@@ -64,9 +64,35 @@ const UploadIcon = () => (
   </svg>
 );
 
+const CameraIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
 const TreeIcon = () => (
-  <svg className="w-10 h-10 sm:w-12 sm:h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+  <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+    <rect x="0" y="0" width="512" height="512" rx="100" fill="#11130c" />
+    <g stroke="#D1E0C4" stroke-width="30" stroke-linecap="round">
+      <line x1="256" y1="130" x2="160" y2="250" />
+      <line x1="256" y1="130" x2="352" y2="250" />
+      <line x1="160" y1="250" x2="100" y2="370" />
+      <line x1="160" y1="250" x2="200" y2="370" />
+      <line x1="352" y1="250" x2="312" y2="370" />
+      <line x1="352" y1="250" x2="412" y2="370" />
+    </g>
+    <g fill="#6C8DA0">
+      <circle cx="100" cy="370" r="45" />
+      <circle cx="200" cy="370" r="45" />
+      <circle cx="312" cy="370" r="45" />
+      <circle cx="412" cy="370" r="45" />
+    </g>
+    <g fill="#D1E0C4">
+      <circle cx="160" cy="250" r="50" />
+      <circle cx="352" cy="250" r="50" />
+    </g>
+    <circle cx="256" cy="130" r="55" fill="#406355" stroke="#D1E0C4" stroke-width="30" />
   </svg>
 );
 
@@ -77,7 +103,7 @@ const SparkleIcon = () => (
 );
 
 export const ActionMenu: React.FC = () => {
-  const { focusId, people, getPerson, openAddModal, openEditModal, deletePerson, exportRelationships, importRelationships } = useFamilyStore();
+  const { focusId, people, getPerson, openAddModal, openEditModal, deletePerson, exportRelationships, importRelationships, setIsExporting } = useFamilyStore();
   const { startTutorial, hasCompletedOnce } = useTutorial();
   const isMobile = useIsMobile();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -110,45 +136,57 @@ export const ActionMenu: React.FC = () => {
           className="hidden"
           onChange={onImportFile}
         />
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none p-4">
-          <motion.div 
+
+        <div className="fixed inset-0 flex items-center justify-center z-40 pointer-events-none p-4">
+          <motion.div
             initial={{ y: 30, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="relative bg-gradient-to-b from-slate-800/95 to-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/50 pointer-events-auto text-center w-full max-w-sm sm:max-w-md overflow-hidden"
+            style={{
+              background: 'var(--card-bg)',
+              borderColor: 'var(--card-border)'
+            }}
+            className="relative backdrop-blur-xl border rounded-3xl p-6 sm:p-8 shadow-2xl pointer-events-auto text-center w-full max-w-sm sm:max-w-md overflow-hidden"
           >
             {/* Decorative gradient line */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500" />
-            
+            <div style={{ background: 'var(--gradient-secondary-accent)' }} className="absolute top-0 left-0 right-0 h-1" />
+
             {/* Logo/Icon */}
-            <motion.div 
+            <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center mx-auto mb-4 sm:mb-6 text-cyan-400 border border-cyan-500/20"
+              style={{
+                background: 'transparent',
+                borderColor: 'transparent',
+                color: 'var(--accent-highlight)'
+              }}
+              className="w-24 h-24 sm:w-32 sm:h-32 flex items-center justify-center mx-auto mb-4 sm:mb-6 overflow-hidden rounded-3xl shadow-xl"
             >
               <TreeIcon />
             </motion.div>
 
-            <motion.h1 
+            <motion.h1
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white via-cyan-200 to-white bg-clip-text text-transparent mb-2"
+              style={{ color: 'var(--app-text)' }}
+              className="text-2xl sm:text-3xl font-bold mb-2"
             >
-              Árbol Genealogico Creator
+              Árbol Genealógico Creator
             </motion.h1>
-            
-            <motion.p 
+
+            <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="text-slate-400 text-sm sm:text-base mb-6 sm:mb-8"
+              style={{ color: 'var(--app-text-muted)' }}
+              className="text-sm sm:text-base mb-6 sm:mb-8"
             >
               Construye tu árbol genealógico de forma visual e intuitiva
             </motion.p>
 
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
@@ -157,26 +195,31 @@ export const ActionMenu: React.FC = () => {
               {/* Main actions */}
               <div className="flex gap-3">
                 <motion.button
-                  whileHover={{ scale: 1.02, boxShadow: '0 20px 40px -15px rgba(6, 182, 212, 0.4)' }}
+                  whileHover={{ scale: 1.02, boxShadow: '0 20px 40px -15px rgba(101, 154, 134, 0.4)' }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     openAddModal('None');
-                    // Iniciar tutorial solo la primera vez y no en móvil
                     if (!hasCompletedOnce && !isMobile) {
                       startTutorial();
                     }
                   }}
-                  className="flex-1 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
+                  style={{ background: 'var(--secondary-500)' }}
+                  className="flex-1 py-4 sm:py-6 rounded-[24px] text-white font-black shadow-xl transition-all flex items-center justify-center gap-3 text-lg sm:text-xl hover:bg-secondary-600"
                 >
-                  <PlusIcon className="w-4 h-4" />
+                  <PlusIcon className="w-6 h-6" />
                   Nuevo Árbol
                 </motion.button>
-                
+
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex-1 py-3.5 sm:py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-all flex items-center justify-center gap-2 border border-slate-700 hover:border-slate-600 text-sm sm:text-base"
+                  style={{
+                    background: 'var(--button-secondary-bg)',
+                    borderColor: 'var(--button-secondary-border)',
+                    color: 'var(--button-secondary-text)'
+                  }}
+                  className="flex-1 py-4 sm:py-6 rounded-[24px] font-black transition-all flex items-center justify-center gap-3 border text-lg sm:text-xl hover:opacity-90 shadow-lg"
                 >
                   <UploadIcon />
                   Importar
@@ -200,6 +243,7 @@ export const ActionMenu: React.FC = () => {
 
   const manageActions: ActionItem[] = [
     { id: 'edit', label: 'Editar', type: 'edit', color: 'from-amber-500 to-orange-500', icon: <EditIcon /> },
+    { id: 'photo', label: 'Foto', type: 'export', color: 'from-pink-500 to-rose-600', icon: <CameraIcon /> },
     { id: 'delete', label: 'Eliminar', type: 'delete', color: 'from-red-500 to-red-600', icon: <TrashIcon /> },
     { id: 'export', label: 'Exportar', type: 'export', color: 'from-emerald-500 to-green-600', icon: <DownloadIcon /> },
     { id: 'import', label: 'Importar', type: 'import', color: 'from-sky-500 to-cyan-600', icon: <UploadIcon /> },
@@ -212,6 +256,8 @@ export const ActionMenu: React.FC = () => {
       openEditModal(person);
     } else if (action.type === 'delete') {
       setShowDeleteConfirm(true);
+    } else if (action.id === 'photo') {
+      setIsExporting(true);
     } else if (action.type === 'export') {
       try {
         const payload = exportRelationships();
@@ -248,7 +294,7 @@ export const ActionMenu: React.FC = () => {
         className="hidden"
         onChange={onImportFile}
       />
-      
+
       {/* Mobile: Floating Action Button */}
       <div className="sm:hidden fixed bottom-4 right-4 z-50">
         <AnimatePresence>
@@ -257,155 +303,177 @@ export const ActionMenu: React.FC = () => {
               initial={{ opacity: 0, scale: 0.8, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: 20 }}
-              className="absolute bottom-16 right-0 bg-slate-900/95 backdrop-blur-xl rounded-2xl p-3 shadow-2xl border border-slate-700/50 min-w-[220px]"
+              style={{
+                background: 'var(--menu-bg)',
+                borderColor: 'var(--menu-border)'
+              }}
+              className="absolute bottom-16 right-0 backdrop-blur-xl rounded-2xl p-3 shadow-2xl border min-w-[220px]"
             >
-              <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-2 px-2">
+              <div style={{ color: 'var(--app-text-muted)' }} className="text-[10px] uppercase tracking-widest font-semibold mb-2 px-2">
                 {person.name}
               </div>
               <div className="grid grid-cols-4 gap-2 mb-3">
                 {addActions.map(action => (
                   <button
                     key={action.id}
-                    onClick={() => handleAction(action)}                    data-tutorial={action.id === 'parent' ? 'padre' : undefined}                    className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-slate-800 transition-colors active:scale-95"
+                    onClick={() => handleAction(action)}
+                    data-tutorial={action.id === 'parent' ? 'padre' : undefined}
+                    className="flex flex-col items-center gap-1 p-2 rounded-xl transition-colors active:scale-95 hover:opacity-80"
+                    style={{ background: 'transparent' }}
                   >
                     <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-lg`}>
                       {action.icon}
                     </div>
-                    <span className="text-[9px] text-slate-400">{action.label}</span>
+                    <span style={{ color: 'var(--app-text-muted)' }} className="text-[9px]">{action.label}</span>
                   </button>
                 ))}
               </div>
-              <div className="border-t border-slate-700/50 pt-2 grid grid-cols-4 gap-2">
+              <div style={{ borderColor: 'var(--menu-border)' }} className="border-t pt-2 grid grid-cols-4 gap-2">
                 {manageActions.map(action => (
                   <button
                     key={action.id}
                     onClick={() => handleAction(action)}
-                    className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-slate-800 transition-colors active:scale-95"
+                    className="flex flex-col items-center gap-1 p-2 rounded-xl transition-colors active:scale-95 hover:opacity-80"
+                    style={{ background: 'transparent' }}
                   >
                     <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-lg`}>
                       {action.icon}
                     </div>
-                    <span className="text-[9px] text-slate-400">{action.label}</span>
+                    <span style={{ color: 'var(--app-text-muted)' }} className="text-[9px]">{action.label}</span>
                   </button>
                 ))}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => setIsExpanded(!isExpanded)}
-          className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30 flex items-center justify-center transition-transform duration-200 ${isExpanded ? 'rotate-45' : ''}`}
+          style={{ background: 'var(--gradient-secondary-accent)' }}
+          className={`w-16 h-16 rounded-2xl text-white shadow-lg flex items-center justify-center transition-transform duration-200 ${isExpanded ? 'rotate-45' : ''}`}
         >
-          <PlusIcon className="w-6 h-6" />
+          <PlusIcon className="w-8 h-8" />
         </motion.button>
       </div>
 
       {/* Desktop: Bottom Bar */}
       <div className="hidden sm:block fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-50">
-        <motion.div 
-            initial={{ y: 30, opacity: 0, scale: 0.95 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl px-3 md:px-5 py-3 md:py-4 shadow-2xl shadow-black/50"
+        <motion.div
+          initial={{ y: 30, opacity: 0, scale: 0.95 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          style={{
+            background: 'var(--menu-bg)',
+            borderColor: 'var(--menu-border)'
+          }}
+          className="backdrop-blur-xl border rounded-2xl px-3 md:px-5 py-3 md:py-4 shadow-2xl"
         >
-            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-2 md:mb-3 text-center">
-                <span className="text-white font-bold">{person.name}</span>
-            </div>
-            
-            <div className="flex items-center gap-1 md:gap-2">
-                {/* Add Actions */}
-                <div className="flex gap-1 md:gap-1.5">
-                  {addActions.map((action) => (
-                      <motion.button
-                          key={action.id}
-                          whileHover={{ scale: 1.08, y: -2 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleAction(action)}
-                          data-tutorial={action.id === 'parent' ? 'padre' : undefined}
-                          className="flex flex-col items-center gap-1 group"
-                      >
-                          <div className={`
+          <div className="text-[10px] uppercase tracking-widest font-semibold mb-2 md:mb-3 text-center" style={{ color: 'var(--app-text-muted)' }}>
+            <span style={{ color: 'var(--app-text)' }} className="font-bold">{person.name}</span>
+          </div>
+
+          <div className="flex items-center gap-1 md:gap-2">
+            {/* Add Actions */}
+            <div className="flex gap-1 md:gap-1.5">
+              {addActions.map((action) => (
+                <motion.button
+                  key={action.id}
+                  whileHover={{ scale: 1.08, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleAction(action)}
+                  data-tutorial={action.id === 'parent' ? 'padre' : undefined}
+                  className="flex flex-col items-center gap-1 group"
+                >
+                  <div className={`
                             w-9 h-9 md:w-11 md:h-11 rounded-xl bg-gradient-to-br ${action.color}
                             flex items-center justify-center text-white
                             shadow-md group-hover:shadow-lg transition-all
                             ring-1 ring-white/10 group-hover:ring-white/30
                           `}>
-                              {action.icon}
-                          </div>
-                          <span className="text-[7px] md:text-[9px] font-medium text-slate-500 group-hover:text-white uppercase transition-colors tracking-wide">
-                              {action.label}
-                          </span>
-                      </motion.button>
-                  ))}
-                </div>
+                    {action.icon}
+                  </div>
+                  <span style={{ color: 'var(--app-text-muted)' }} className="text-[7px] md:text-[9px] font-medium uppercase transition-colors tracking-wide group-hover:opacity-80">
+                    {action.label}
+                  </span>
+                </motion.button>
+              ))}
+            </div>
 
-                {/* Divider */}
-                <div className="w-px h-10 md:h-12 bg-slate-700/50 mx-1 md:mx-2" />
+            {/* Divider */}
+            <div style={{ background: 'var(--menu-border)' }} className="w-px h-10 md:h-12 mx-1 md:mx-2" />
 
-                {/* Manage Actions */}
-                <div className="flex gap-1 md:gap-1.5">
-                  {manageActions.map((action) => (
-                      <motion.button
-                          key={action.id}
-                          whileHover={{ scale: 1.08, y: -2 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleAction(action)}
-                          className="flex flex-col items-center gap-1 group"
-                      >
-                          <div className={`
+            {/* Manage Actions */}
+            <div className="flex gap-1 md:gap-1.5">
+              {manageActions.map((action) => (
+                <motion.button
+                  key={action.id}
+                  whileHover={{ scale: 1.08, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleAction(action)}
+                  className="flex flex-col items-center gap-1 group"
+                >
+                  <div className={`
                             w-9 h-9 md:w-11 md:h-11 rounded-xl bg-gradient-to-br ${action.color}
                             flex items-center justify-center text-white
                             shadow-md group-hover:shadow-lg transition-all
                             ring-1 ring-white/10 group-hover:ring-white/30
                           `}>
-                              {action.icon}
-                          </div>
-                          <span className="text-[7px] md:text-[9px] font-medium text-slate-500 group-hover:text-white uppercase transition-colors tracking-wide">
-                              {action.label}
-                          </span>
-                      </motion.button>
-                  ))}
-                </div>
+                    {action.icon}
+                  </div>
+                  <span style={{ color: 'var(--app-text-muted)' }} className="text-[7px] md:text-[9px] font-medium uppercase transition-colors tracking-wide group-hover:opacity-80">
+                    {action.label}
+                  </span>
+                </motion.button>
+              ))}
             </div>
+          </div>
         </motion.div>
       </div>
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {showDeleteConfirm && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[200] p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4"
             onClick={() => setShowDeleteConfirm(false)}
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={e => e.stopPropagation()}
-              className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+              style={{
+                background: 'var(--card-bg)',
+                borderColor: 'var(--card-border)'
+              }}
+              className="border rounded-2xl p-6 w-full max-w-sm shadow-2xl"
             >
-              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4 text-red-400">
+              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4 text-red-500">
                 <TrashIcon />
               </div>
-              <h3 className="text-lg font-bold text-white text-center mb-2">¿Eliminar a {person.name}?</h3>
-              <p className="text-sm text-slate-400 text-center mb-6">
+              <h3 style={{ color: 'var(--app-text)' }} className="text-lg font-bold text-center mb-2">¿Eliminar a {person.name}?</h3>
+              <p style={{ color: 'var(--app-text-muted)' }} className="text-sm text-center mb-6">
                 Esta acción eliminará a esta persona y todas sus conexiones familiares.
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-sm transition-colors"
+                  style={{
+                    background: 'var(--button-secondary-bg)',
+                    borderColor: 'var(--button-secondary-border)',
+                    color: 'var(--button-secondary-text)'
+                  }}
+                  className="flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors border hover:opacity-90"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={confirmDelete}
-                  className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-medium text-sm transition-colors"
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-medium text-sm transition-colors shadow-lg shadow-red-500/30"
                 >
                   Eliminar
                 </button>

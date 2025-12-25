@@ -175,13 +175,14 @@ export const Tutorial: React.FC = () => {
               transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
               className="flex items-center"
             >
-              <div className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-2xl text-sm font-bold shadow-xl shadow-cyan-500/40 whitespace-nowrap">
+              <div style={{ background: 'var(--gradient-secondary-accent)' }} className="text-white px-4 py-2 rounded-2xl text-sm font-bold shadow-xl whitespace-nowrap">
                 ✏️ Escribe tu nombre aquí
               </div>
               <motion.svg 
                 animate={{ x: [0, 5, 0] }}
                 transition={{ repeat: Infinity, duration: 0.8 }}
-                className="w-6 h-6 text-cyan-400 ml-1" 
+                style={{ color: 'var(--accent-highlight)' }}
+                className="w-6 h-6 ml-1" 
                 fill="currentColor" 
                 viewBox="0 0 20 20"
               >
@@ -207,7 +208,7 @@ export const Tutorial: React.FC = () => {
               transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
               className="flex items-center"
             >
-              <div className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-2xl text-sm font-bold shadow-xl shadow-cyan-500/40 whitespace-nowrap">
+              <div style={{ background: 'var(--gradient-secondary-accent)' }} className="text-white px-4 py-2 rounded-2xl text-sm font-bold shadow-xl whitespace-nowrap">
                 {isAddingParent 
                   ? '✏️ Revisa los apellidos' 
                   : '✏️ Ahora los apellidos'}
@@ -215,7 +216,8 @@ export const Tutorial: React.FC = () => {
               <motion.svg 
                 animate={{ x: [0, 5, 0] }}
                 transition={{ repeat: Infinity, duration: 0.8 }}
-                className="w-6 h-6 text-cyan-400 ml-1" 
+                style={{ color: 'var(--accent-highlight)' }}
+                className="w-6 h-6 ml-1" 
                 fill="currentColor" 
                 viewBox="0 0 20 20"
               >
@@ -273,13 +275,14 @@ export const Tutorial: React.FC = () => {
               transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
               className="flex flex-col items-center"
             >
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-2xl text-sm font-bold shadow-xl shadow-blue-500/40 whitespace-nowrap">
+              <div style={{ background: 'var(--accent-500)' }} className="text-white px-4 py-2 rounded-2xl text-sm font-bold shadow-xl whitespace-nowrap">
                 👇 Pulsa PADRE aquí
               </div>
               <motion.svg 
                 animate={{ y: [0, 5, 0] }}
                 transition={{ repeat: Infinity, duration: 0.8 }}
-                className="w-6 h-6 text-blue-400 mt-2" 
+                style={{ color: 'var(--accent-highlight)' }}
+                className="w-6 h-6 mt-2" 
                 fill="currentColor" 
                 viewBox="0 0 20 20"
               >
@@ -300,12 +303,13 @@ export const Tutorial: React.FC = () => {
               <motion.div
                 animate={{ 
                   boxShadow: [
-                    '0 0 0 0 rgba(6, 182, 212, 0.7)',
-                    '0 0 0 30px rgba(6, 182, 212, 0)',
+                    '0 0 0 0 rgba(68, 105, 91, 0.7)',
+                    '0 0 0 30px rgba(68, 105, 91, 0)',
                   ],
                 }}
                 transition={{ repeat: Infinity, duration: 1.5 }}
-                className="w-[180px] h-[150px] rounded-3xl border-2 border-cyan-400"
+                style={{ borderColor: 'var(--secondary-500)' }}
+                className="w-[180px] h-[150px] rounded-3xl border-2"
               />
             </motion.div>
             <motion.div
@@ -316,7 +320,8 @@ export const Tutorial: React.FC = () => {
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
-                className="bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg flex items-center gap-2"
+                style={{ background: 'var(--secondary-500)' }}
+                className="text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg flex items-center gap-2"
               >
                 👆 Esta eres tú
               </motion.div>
@@ -332,38 +337,46 @@ export const Tutorial: React.FC = () => {
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           className="fixed bottom-24 sm:bottom-6 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-sm z-[153] pointer-events-auto"
         >
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 backdrop-blur-2xl rounded-2xl p-5 border border-cyan-500/40 shadow-2xl shadow-cyan-500/20">
+          <div 
+            style={{
+              background: 'var(--card-bg)',
+              borderColor: 'var(--accent-highlight)'
+            }}
+            className="backdrop-blur-2xl rounded-2xl p-5 border shadow-2xl"
+          >
             {/* Progress bar */}
             <div className="flex gap-1.5 mb-4">
               {Array.from({ length: totalSteps }).map((_, i) => (
                 <div 
                   key={i}
-                  className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                    i < stepIndex 
-                      ? 'bg-cyan-500' 
+                  style={{
+                    background: i < stepIndex 
+                      ? 'var(--secondary-500)' 
                       : i === stepIndex 
-                        ? 'bg-gradient-to-r from-cyan-400 to-blue-500' 
-                        : 'bg-slate-700'
-                  }`}
+                        ? 'var(--gradient-secondary-accent)' 
+                        : 'var(--background-200)'
+                  }}
+                  className="h-1.5 flex-1 rounded-full transition-all duration-300"
                 />
               ))}
             </div>
             
             {/* Content */}
-            <h3 className="text-base sm:text-lg font-bold text-cyan-400 mb-2">{config.title}</h3>
-            <p className="text-sm text-slate-300 leading-relaxed mb-3">{config.description}</p>
+            <h3 style={{ color: 'var(--secondary-500)' }} className="text-base sm:text-lg font-bold mb-2">{config.title}</h3>
+            <p style={{ color: 'var(--app-text-muted)' }} className="text-sm leading-relaxed mb-3">{config.description}</p>
             
             {config.tip && (
-              <p className="text-xs text-slate-400 italic mb-3 flex items-start gap-1.5">
+              <p style={{ color: 'var(--app-text-subtle)' }} className="text-xs italic mb-3 flex items-start gap-1.5">
                 <span>💡</span> {config.tip}
               </p>
             )}
             
             {/* Actions */}
-            <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-700/50">
+            <div style={{ borderColor: 'var(--card-border)' }} className="flex items-center justify-between gap-3 pt-2 border-t">
               <button
                 onClick={skipTutorial}
-                className="text-xs text-slate-500 hover:text-slate-300 transition-colors py-1"
+                style={{ color: 'var(--app-text-subtle)' }}
+                className="text-xs hover:opacity-70 transition-colors py-1"
               >
                 Saltar tutorial
               </button>
@@ -373,12 +386,13 @@ export const Tutorial: React.FC = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={skipTutorial}
-                  className="px-4 py-2 text-sm bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg shadow-cyan-500/25"
+                  style={{ background: 'var(--gradient-secondary-accent)' }}
+                  className="px-4 py-2 text-sm text-white rounded-xl font-semibold shadow-lg"
                 >
                   ¡Empezar! ✨
                 </motion.button>
               ) : (
-                <span className="text-xs text-slate-500 font-medium">
+                <span style={{ color: 'var(--app-text-muted)' }} className="text-xs font-medium">
                   Paso {stepIndex + 1} de {totalSteps}
                 </span>
               )}

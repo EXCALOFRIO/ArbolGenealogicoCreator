@@ -10,7 +10,7 @@ export const Controls: React.FC = () => {
   const { isActive: tutorialActive, currentStep, goToStep } = useTutorial();
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  
+
   // Form State
   const [newName, setNewName] = useState('');
   const [newSurnames, setNewSurnames] = useState('');
@@ -18,19 +18,19 @@ export const Controls: React.FC = () => {
   const [newPhoto, setNewPhoto] = useState<string>('');
   const [genderAutoDetected, setGenderAutoDetected] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Data for autocomplete
   const [nameOptions, setNameOptions] = useState<string[]>([]);
   const [surnameOptions, setSurnameOptions] = useState<string[]>([]);
-  
+
   // Tutorial auto-advance when typing - funciona para crear persona Y para añadir padre/madre
   useEffect(() => {
     if (!tutorialActive) return;
-    
+
     // Para el primer paso (crearse a sí mismo)
     if (currentStep === 'create-self' && newName.trim().length >= 2) {
       goToStep('enter-surname');
-    } 
+    }
     else if (currentStep === 'enter-surname' && newSurnames.trim().length >= 3) {
       goToStep('confirm-person');
     }
@@ -113,12 +113,12 @@ export const Controls: React.FC = () => {
     // LÓGICA PARA PADRE/MADRE - Inferir apellidos del hijo
     if (modalContext === 'Parent') {
       const childSurnames = getSurnamesParts(focusPerson.surnames);
-      
+
       // El hijo ya tiene padre o madre?
       const existingParents = focusPerson.parents.map(pid => getPerson(pid)).filter((p): p is Person => !!p);
       const hasFather = existingParents.some(p => p.gender === 'Male');
       const hasMother = existingParents.some(p => p.gender === 'Female');
-      
+
       // En España: hijo tiene [Apellido1_padre] [Apellido1_madre] [Apellido2_padre?] [Apellido2_madre?]
       // Si el hijo tiene 2 apellidos: "García López"
       //   - Padre: "García ?" (primer apellido del hijo)
@@ -126,11 +126,11 @@ export const Controls: React.FC = () => {
       // Si el hijo tiene 4 apellidos: "García López Pérez Martín"
       //   - Padre: "García Pérez" (posiciones 0 y 2)
       //   - Madre: "López Martín" (posiciones 1 y 3)
-      
+
       if (childSurnames.length >= 2) {
         // Determinar si estamos añadiendo padre o madre basado en si ya existe uno
         let inferredSurnames = '';
-        
+
         if (!hasFather && !hasMother) {
           // No hay ningún padre todavía - asumimos que será padre (primer apellido)
           // Posiciones pares para el padre: 0, 2, 4...
@@ -146,7 +146,7 @@ export const Controls: React.FC = () => {
           const fatherSurnames = childSurnames.filter((_, i) => i % 2 === 0);
           inferredSurnames = fatherSurnames.join(' ');
         }
-        
+
         if (inferredSurnames) {
           setNewSurnames(up(inferredSurnames));
         }
@@ -221,11 +221,11 @@ export const Controls: React.FC = () => {
     }
   }, [isModalOpen, modalContext, editingPerson, focusId, getPerson, newGender, genderAutoDetected]);
 
-  const searchResults = searchTerm.length > 1 
-    ? people.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        p.surnames.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+  const searchResults = searchTerm.length >= 1
+    ? people.filter(p =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.surnames.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     : [];
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -298,7 +298,7 @@ export const Controls: React.FC = () => {
       } else {
         addRelative(person, modalContext);
       }
-      
+
       setFocusId(id);
     }
     handleClose();
@@ -326,170 +326,208 @@ export const Controls: React.FC = () => {
 
   return (
     <>
-    {/* Top Bar: Search */}
-    {people.length > 0 && (
-    <div className="fixed top-0 left-0 right-0 p-2 sm:p-4 z-50 flex justify-center pointer-events-none">
-      <div className="relative pointer-events-auto w-full max-w-xs sm:max-w-md">
-        <div className={`
-          flex items-center bg-slate-900/90 backdrop-blur-xl rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 
+      {/* Top Bar: Search */}
+      {people.length > 0 && (
+        <div className="fixed top-0 left-0 right-0 p-2 sm:p-4 z-50 flex justify-center pointer-events-none">
+          <div className="relative pointer-events-auto w-full max-w-xs sm:max-w-md">
+            <div
+              style={{
+                background: 'var(--card-bg)',
+                borderColor: isSearchFocused ? 'var(--accent-highlight)' : 'var(--card-border)'
+              }}
+              className={`
+          flex items-center 
+          backdrop-blur-xl rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 border
+          shadow-lg
           transition-all duration-300 ease-out
-          ${isSearchFocused 
-            ? 'ring-2 ring-cyan-500/50 shadow-lg shadow-cyan-500/10 border-cyan-500/50' 
-            : 'border border-slate-700/50 hover:border-slate-600/50'}
+          ${isSearchFocused ? 'ring-2' : 'hover:opacity-95'}
         `}>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" 
-              className={`w-4 h-4 mr-2 sm:mr-3 flex-shrink-0 transition-colors ${isSearchFocused ? 'text-cyan-400' : 'text-slate-500'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
+                style={{ color: isSearchFocused ? 'var(--accent-highlight)' : 'var(--app-text-subtle)' }}
+                className="w-4 h-4 mr-2 sm:mr-3 flex-shrink-0 transition-colors">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
-            <input 
-              type="text" 
-              placeholder="Buscar en el linaje..." 
-              className="bg-transparent text-white w-full focus:outline-none text-sm placeholder-slate-500"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value.toUpperCase())}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-            />
+              </svg>
+              <input
+                type="text"
+                placeholder="Buscar en el linaje..."
+                style={{ color: 'var(--app-text)' }}
+                className="bg-transparent w-full focus:outline-none text-sm placeholder-opacity-60"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value.toUpperCase())}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+              />
 
-            <button
-              type="button"
-              title={viewMode === 'tree' ? 'Cambiar a vista lista' : 'Cambiar a vista mapa'}
-              onClick={() => setViewMode(viewMode === 'tree' ? 'list' : 'tree')}
-              className="ml-2 text-slate-500 hover:text-white transition-colors"
-            >
-              {viewMode === 'tree' ? (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M10 14h10M10 18h10M4 14h4v4H4v-4z" />
-                </svg>
-              )}
-            </button>
-
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="text-slate-500 hover:text-white transition-colors"
+              <button
+                type="button"
+                title={viewMode === 'tree' ? 'Cambiar a vista lista' : 'Cambiar a vista mapa'}
+                onClick={() => setViewMode(viewMode === 'tree' ? 'list' : 'tree')}
+                style={{ color: 'var(--app-text-subtle)' }}
+                className="ml-2 p-1.5 rounded-lg hover:opacity-70 transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                {viewMode === 'tree' ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M10 14h10M10 18h10M4 14h4v4H4v-4z" />
+                  </svg>
+                )}
               </button>
-            )}
-        </div>
-        
-        {searchResults.length > 0 && (
-          <div className="absolute top-full mt-2 w-full bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-slate-700/50 max-h-64 overflow-y-auto">
-            {searchResults.map(p => (
-              <div 
-                key={p.id} 
-                className="px-4 py-3 hover:bg-slate-800/80 cursor-pointer border-b border-slate-800/50 last:border-0 flex justify-between items-center group transition-all"
-                onClick={() => { setFocusId(p.id); setSearchTerm(''); }}
+
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  style={{ color: 'var(--app-text-subtle)' }}
+                  className="hover:opacity-70 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {searchResults.length > 0 && (
+              <div
+                style={{
+                  background: 'var(--menu-bg)',
+                  borderColor: 'var(--menu-border)'
+                }}
+                className="absolute top-full mt-2 w-full backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border max-h-64 overflow-y-auto"
               >
-                <div className="flex items-center gap-3">
-                  {p.photo ? (
-                    <img src={p.photo} className="w-8 h-8 rounded-full object-cover" alt="" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-[10px] font-bold text-white">
-                      {p.name.substring(0, 2).toUpperCase()}
+                {searchResults.map(p => (
+                  <div
+                    key={p.id}
+                    style={{ borderColor: 'var(--card-border)' }}
+                    className="px-4 py-3 cursor-pointer border-b last:border-0 flex justify-between items-center group transition-all hover:opacity-80"
+                    onClick={() => { setFocusId(p.id); setSearchTerm(''); }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {p.photo ? (
+                        <img src={p.photo} className="w-8 h-8 rounded-full object-cover" alt="" />
+                      ) : (
+                        <div style={{ background: 'var(--gradient-secondary-accent)' }} className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                          {p.name.substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ color: 'var(--app-text)' }} className="font-semibold text-sm transition-colors">{p.name}</div>
+                        <div style={{ color: 'var(--app-text-muted)' }} className="text-[10px]">{p.surnames}</div>
+                      </div>
                     </div>
-                  )}
-                  <div>
-                    <div className="font-semibold text-white text-sm group-hover:text-cyan-400 transition-colors">{p.name}</div>
-                    <div className="text-[10px] text-slate-500">{p.surnames}</div>
+                    <svg style={{ color: 'var(--app-text-subtle)' }} className="w-4 h-4 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </div>
-                </div>
-                <svg className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
-    </div>
-    )}
+        </div>
+      )}
 
-    {/* Creation/Edit Modal */}
+      {/* Creation/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center pointer-events-auto z-[100] p-4">
-          <div className="bg-gradient-to-b from-slate-800 to-slate-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl w-full max-w-sm sm:max-w-md shadow-2xl border border-slate-700/50 relative overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center pointer-events-auto z-[100] p-4">
+          <div
+            style={{
+              background: 'var(--card-bg)',
+              borderColor: 'var(--card-border)'
+            }}
+            className="p-6 sm:p-10 rounded-[32px] w-full max-w-md sm:max-w-xl shadow-2xl border relative overflow-hidden max-h-[90vh] overflow-y-auto"
+          >
+            <div style={{ background: 'var(--gradient-secondary-accent)' }} className="absolute top-0 left-0 w-full h-1" />
 
-            <h2 className="text-base sm:text-lg font-bold mb-1 text-white">
+            <h2 style={{ color: 'var(--app-text)' }} className="text-2xl sm:text-3xl font-black mb-2 tracking-tighter">
               {editingPerson ? 'Editar Persona' : 'Vincular Persona'}
             </h2>
-            <p className="text-[10px] sm:text-[11px] text-cyan-400 font-medium mb-4 sm:mb-5 bg-cyan-950/40 inline-block px-2 sm:px-3 py-1 rounded-full">
-                {getContextLabel()}
+            <p
+              style={{
+                color: 'var(--secondary-950)',
+                background: 'var(--secondary-500)'
+              }}
+              className="text-xs sm:text-sm font-black mb-6 sm:mb-8 inline-block px-4 sm:px-6 py-2 rounded-full shadow-md uppercase tracking-wider"
+            >
+              {getContextLabel()}
             </p>
-            
+
             <div className="flex flex-col gap-3 sm:gap-4">
               {/* Photo Upload */}
               <div className="flex flex-col items-center gap-2 sm:gap-3">
-                <div 
+                <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-700/50 border-2 border-dashed border-slate-600 hover:border-cyan-500/50 cursor-pointer flex items-center justify-center overflow-hidden transition-all group"
+                  style={{
+                    background: 'var(--background-100)',
+                    borderColor: 'var(--card-border)'
+                  }}
+                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-dashed cursor-pointer flex items-center justify-center overflow-hidden transition-all group hover:opacity-80 mb-4"
                 >
                   {newPhoto ? (
                     <img src={newPhoto} className="w-full h-full object-cover" alt="Preview" />
                   ) : (
-                    <div className="flex flex-col items-center text-slate-500 group-hover:text-cyan-400 transition-colors">
-                      <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <div style={{ color: 'var(--app-text-subtle)' }} className="flex flex-col items-center transition-colors">
+                      <svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      <span className="text-[8px] sm:text-[9px] mt-1">Foto</span>
+                      <span className="text-xs sm:text-sm font-bold mt-2">Añadir Foto</span>
                     </div>
                   )}
                 </div>
-                <input 
+                <input
                   ref={fileInputRef}
-                  type="file" 
-                  accept="image/*" 
+                  type="file"
+                  accept="image/*"
                   onChange={handlePhotoUpload}
-                  className="hidden" 
+                  className="hidden"
                 />
                 {newPhoto && (
-                  <button 
+                  <button
                     onClick={() => setNewPhoto('')}
-                    className="text-[10px] text-red-400 hover:text-red-300"
+                    className="text-[10px] text-red-500 hover:text-red-400"
                   >
                     Quitar foto
                   </button>
                 )}
               </div>
 
-              <AutocompleteInput 
-                label="Nombre" 
-                value={newName} 
-                onChange={setNewName} 
-                suggestions={nameOptions} 
+              <AutocompleteInput
+                label="Nombre"
+                value={newName}
+                onChange={setNewName}
+                suggestions={nameOptions}
                 placeholder="Ej. Alejandro"
                 dataTutorial="nombre"
               />
-              <AutocompleteInput 
-                label="Apellidos" 
-                value={newSurnames} 
-                onChange={setNewSurnames} 
-                suggestions={surnameOptions} 
+              <AutocompleteInput
+                label="Apellidos"
+                value={newSurnames}
+                onChange={setNewSurnames}
+                suggestions={surnameOptions}
                 placeholder="Ej. Ramírez"
                 multiWord
                 dataTutorial="apellidos"
               />
 
-              <div className="flex gap-2 sm:gap-3 mt-2 sm:mt-3">
-                <button 
+              <div className="flex gap-3 sm:gap-4 mt-4 sm:mt-6">
+                <button
                   onClick={handleCreate}
                   disabled={!newName || !newSurnames}
                   data-tutorial="confirmar"
-                  className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white py-2.5 sm:py-3 rounded-xl shadow-lg font-semibold text-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all transform active:scale-[0.98]"
+                  style={{ background: 'var(--secondary-500)' }}
+                  className="flex-[1.5] text-white py-4 sm:py-5 rounded-2xl shadow-xl font-black text-lg sm:text-xl disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed transition-all transform active:scale-[0.98] hover:brightness-110"
                 >
                   {editingPerson ? 'Guardar' : 'Confirmar'}
                 </button>
-                <button 
+                <button
                   onClick={handleClose}
-                  className="px-4 sm:px-5 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 sm:py-3 rounded-xl font-medium text-sm transition-colors border border-slate-700"
+                  style={{
+                    background: 'var(--button-secondary-bg)',
+                    borderColor: 'var(--button-secondary-border)',
+                    color: 'var(--button-secondary-text)'
+                  }}
+                  className="flex-1 px-6 sm:px-8 py-4 sm:py-5 rounded-2xl font-bold text-base sm:text-xl transition-colors border hover:opacity-90 active:scale-[0.98]"
                 >
                   Cancelar
                 </button>

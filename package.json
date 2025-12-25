@@ -9,11 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@xyflow/react": "12.4.2",
+    "framer-motion": "^12.23.26",
+    "html-to-image": "^1.11.13",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "framer-motion": "^12.23.26",
-    "zustand": "^5.0.9",
-    "@xyflow/react": "12.4.2"
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

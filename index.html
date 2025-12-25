@@ -1,38 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/icon.png" />
-    <title>Árbol Genealogico Creator - Árbol Genealógico Interactivo</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xyflow/react@12.4.2/dist/style.css" />
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              slate: {
-                850: '#1a202c',
-                900: '#0f172a',
-                950: '#020617',
-              }
-            }
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Árbol Genealogico Creator - Árbol Genealógico Interactivo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xyflow/react@12.4.2/dist/style.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'text': {
+              50: 'var(--text-50)',
+              100: 'var(--text-100)',
+              200: 'var(--text-200)',
+              300: 'var(--text-300)',
+              400: 'var(--text-400)',
+              500: 'var(--text-500)',
+              600: 'var(--text-600)',
+              700: 'var(--text-700)',
+              800: 'var(--text-800)',
+              900: 'var(--text-900)',
+              950: 'var(--text-950)',
+            },
+            'background': {
+              50: 'var(--background-50)',
+              100: 'var(--background-100)',
+              200: 'var(--background-200)',
+              300: 'var(--background-300)',
+              400: 'var(--background-400)',
+              500: 'var(--background-500)',
+              600: 'var(--background-600)',
+              700: 'var(--background-700)',
+              800: 'var(--background-800)',
+              900: 'var(--background-900)',
+              950: 'var(--background-950)',
+            },
+            'primary': {
+              50: 'var(--primary-50)',
+              100: 'var(--primary-100)',
+              200: 'var(--primary-200)',
+              300: 'var(--primary-300)',
+              400: 'var(--primary-400)',
+              500: 'var(--primary-500)',
+              600: 'var(--primary-600)',
+              700: 'var(--primary-700)',
+              800: 'var(--primary-800)',
+              900: 'var(--primary-900)',
+              950: 'var(--primary-950)',
+            },
+            'secondary': {
+              50: 'var(--secondary-50)',
+              100: 'var(--secondary-100)',
+              200: 'var(--secondary-200)',
+              300: 'var(--secondary-300)',
+              400: 'var(--secondary-400)',
+              500: 'var(--secondary-500)',
+              600: 'var(--secondary-600)',
+              700: 'var(--secondary-700)',
+              800: 'var(--secondary-800)',
+              900: 'var(--secondary-900)',
+              950: 'var(--secondary-950)',
+            },
+            'accent': {
+              50: 'var(--accent-50)',
+              100: 'var(--accent-100)',
+              200: 'var(--accent-200)',
+              300: 'var(--accent-300)',
+              400: 'var(--accent-400)',
+              500: 'var(--accent-500)',
+              600: 'var(--accent-600)',
+              700: 'var(--accent-700)',
+              800: 'var(--accent-800)',
+              900: 'var(--accent-900)',
+              950: 'var(--accent-950)',
+            },
           }
         }
-      }
-    </script>
-    <style>
-      body { background-color: #0f172a; color: white; overflow: hidden; margin: 0; }
-      #root { width: 100vw; height: 100vh; }
-      .react-flow__pane { background-color: #0b1121; }
-      .react-flow__handle { opacity: 0; } /* Escondemos los puntos de conexión técnicos */
-      
-      /* Custom scrollbar */
-      ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: #1e293b; }
-      ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-    </style>
+      },
+      darkMode: 'class'
+    }
+  </script>
+  <style>
+    #root {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .react-flow__handle {
+      opacity: 0;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--background-100);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--primary-400);
+      border-radius: 4px;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -41,14 +117,17 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "framer-motion": "https://esm.sh/framer-motion@^12.23.26",
     "zustand": "https://esm.sh/zustand@^5.0.9",
-    "@xyflow/react": "https://esm.sh/@xyflow/react@12.4.2"
+    "@xyflow/react": "https://esm.sh/@xyflow/react@12.4.2",
+    "html-to-image": "https://esm.sh/html-to-image@1.11.11"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
-    <div id="root"></div>
+
+<body>
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>
