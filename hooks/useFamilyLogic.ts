@@ -78,11 +78,10 @@ export const useFamilyLogic = () => {
 
     // 3. CALCULAR RELACIONES DESDE EL FOCO (N LEV up, M LEV down)
     const currentFocusId = viewRootId || focusId || anchorId;
-    const rels = new Map<string, string>();
     const nodeCoords = new Map<string, { up: number, down: number }>();
 
     // BFS para distancias/rutas relativas
-    // Usamos un sistema de coordenadas (Up, Down) desde el foco.
+    // (up: niveles hacia el ancestro común, down: niveles hacia el pariente)
     const rq: { id: string, up: number, down: number }[] = [{ id: currentFocusId, up: 0, down: 0 }];
     nodeCoords.set(currentFocusId, { up: 0, down: 0 });
 
@@ -92,7 +91,8 @@ export const useFamilyLogic = () => {
       const p = peopleById.get(id);
       if (!p) continue;
 
-      // Subir a padres (solo si no estamos ya bajando)
+      // REGLAS ESTRICTAS DE GENEALOGÍA:
+      // A) SUBIR A PADRES: Solo si no hemos empezado a bajar (somos ancestros directos)
       if (down === 0) {
         (p.parents || []).forEach(pid => {
           if (!nodeCoords.has(pid)) {
@@ -102,32 +102,28 @@ export const useFamilyLogic = () => {
         });
       }
 
-      // Bajar a hijos
+      // B) BAJAR A HIJOS: Se puede bajar desde el foco o desde cualquier ancestro
       (p.children || []).forEach(cid => {
         if (!nodeCoords.has(cid)) {
-          nodeCoords.set(cid, { up: up, down: down + 1 });
-          rq.push({ id: cid, up: up, down: down + 1 });
+          // Si bajamos, incrementamos el contador de "down"
+          nodeCoords.set(cid, { up, down: down + 1 });
+          rq.push({ id: cid, up, down: down + 1 });
         }
       });
 
-      // Parejas y Hermanos se consideran al mismo nivel (en cuanto a Up/Down)
-      const group = new Set([...(p.partners || []), ...(p.siblings || [])]);
-      // Inferir hermanos de padres
-      (p.parents || []).forEach(pid => {
-        const parent = peopleById.get(pid);
-        if (parent) parent.children.forEach(cid => { if (cid !== id) group.add(cid); });
-      });
-
-      group.forEach(gid => {
-        if (!nodeCoords.has(gid)) {
-          nodeCoords.set(gid, { up, down });
-          rq.push({ id: gid, up, down });
+      // C) PAREJAS: Se mantienen en el mismo nivel de parentesco
+      (p.partners || []).forEach(sid => {
+        if (!nodeCoords.has(sid)) {
+          nodeCoords.set(sid, { up, down });
+          rq.push({ id: sid, up, down });
         }
       });
     }
 
     const getRelLabel = (p: Person, up: number, down: number) => {
       const gender = p.gender;
+
+      // Coordenadas exactas:
       if (up === 0 && down === 0) return 'YO';
       if (up === 1 && down === 0) return gender === 'Male' ? 'Padre' : 'Madre';
       if (up === 0 && down === 1) return gender === 'Male' ? 'Hijo' : 'Hija';
@@ -145,6 +141,7 @@ export const useFamilyLogic = () => {
       if (up === 2 && down === 3) return gender === 'Male' ? 'Sob. segundo' : 'Sob. segunda';
       if (up === 3 && down === 3) return gender === 'Male' ? 'Primo segundo' : 'Prima segunda';
 
+      // Genéricos:
       if (up > 0 && down === 0) return getAncestorLabel(up, gender);
       if (up === 0 && down > 0) return getDescendantLabel(down, gender);
 
