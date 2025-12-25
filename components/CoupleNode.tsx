@@ -88,7 +88,7 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false }: { person: R
           </div>
         ) : (
           <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-md ${colors.bg} ${colors.text} ring-2 transition-all duration-200`}
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md ${colors.bg} ${colors.text} ring-2 transition-all duration-200`}
             style={{
               borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
               boxShadow: isFocus ? '0 0 10px rgba(104, 144, 156, 0.4)' : undefined
@@ -103,8 +103,10 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false }: { person: R
         >
           {isFocus ? 'YO' : getRelationLabel(person.relationType, person.gender)}
         </span>
-        <h3 style={{ color: 'var(--app-text)' }} className="text-xs font-semibold leading-tight text-center line-clamp-1">{person.name}</h3>
-        <p style={{ color: 'var(--app-text-muted)' }} className="text-[10px] text-center leading-tight line-clamp-1">{person.surnames}</p>
+        <div className="flex flex-col items-center mt-0.5 w-full px-1">
+          <h3 style={{ color: 'var(--app-text)' }} className="text-[10px] font-semibold leading-tight text-center break-words w-full">{person.name}</h3>
+          <p style={{ color: 'var(--app-text-muted)' }} className="text-[8px] text-center leading-tight mt-0.5 break-words w-full">{person.surnames}</p>
+        </div>
       </div>
     );
   }
@@ -127,13 +129,13 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false }: { person: R
             borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
             boxShadow: isFocus ? '0 0 12px rgba(104, 144, 156, 0.4)' : undefined
           }}
-          className="w-12 h-12 rounded-full overflow-hidden shadow-lg ring-[3px] transition-all duration-200"
+          className="w-11 h-11 rounded-full overflow-hidden shadow-lg ring-[3px] transition-all duration-200"
         >
           <img src={person.photo} alt="" className="w-full h-full object-cover" />
         </div>
       ) : (
         <div
-          className={`w-12 h-12 rounded-full flex items-center justify-center text-base font-bold shadow-lg ${colors.bg} ${colors.text} ring-[3px] transition-all duration-200`}
+          className={`w-11 h-11 rounded-full flex items-center justify-center text-base font-bold shadow-lg ${colors.bg} ${colors.text} ring-[3px] transition-all duration-200`}
           style={{
             borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
             boxShadow: isFocus ? '0 0 12px rgba(104, 144, 156, 0.4)' : undefined
@@ -144,12 +146,14 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false }: { person: R
       )}
       <span
         style={{ color: isFocus ? 'var(--accent-highlight)' : 'var(--app-text-subtle)' }}
-        className="text-[10px] font-semibold tracking-wider mt-2"
+        className="text-[9px] font-semibold tracking-wider mt-2"
       >
         {isFocus ? 'YO' : getRelationLabel(person.relationType, person.gender)}
       </span>
-      <h3 style={{ color: 'var(--app-text)' }} className="text-base font-semibold leading-tight text-center mt-0.5">{person.name}</h3>
-      <p style={{ color: 'var(--app-text-muted)' }} className="text-sm text-center leading-tight">{person.surnames}</p>
+      <div className="flex flex-col items-center mt-1 w-full px-1">
+        <h3 style={{ color: 'var(--app-text)' }} className="text-[12px] font-bold leading-tight text-center break-words w-full">{person.name}</h3>
+        <p style={{ color: 'var(--app-text-muted)' }} className="text-[10px] text-center leading-normal mt-0.5 break-words w-full">{person.surnames}</p>
+      </div>
     </div>
   );
 };
@@ -174,7 +178,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
           boxShadow: hasAnyFocus ? '0 0 20px rgba(104, 144, 156, 0.3)' : undefined
         }}
         className={`
-          relative flex w-[200px] items-center gap-0 rounded-xl p-1 border
+          relative flex w-[160px] h-[130px] items-center gap-0 rounded-xl p-1 border
           transition-all duration-300 ease-out
           ${hasAnyFocus ? 'ring-2' : 'hover:shadow-md'}
           backdrop-blur-xl
@@ -228,7 +232,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
         boxShadow: hasAnyFocus ? '0 0 25px rgba(104, 144, 156, 0.35)' : undefined
       }}
       className={`
-        relative flex w-[320px] items-center gap-0 rounded-[28px] p-1.5 border
+        relative flex w-[210px] h-auto items-center gap-0 rounded-[20px] p-1.5 border
         transition-all duration-300 ease-out
         ${hasAnyFocus ? 'ring-2' : 'hover:shadow-lg'}
         backdrop-blur-xl

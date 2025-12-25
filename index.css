@@ -198,12 +198,6 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    /* Si el sistema está en dark y no hemos forzado light, activamos variables dark */
-  }
-}
-
 /* ============ BASE STYLES ============ */
 body {
   background-color: var(--app-bg);

@@ -118,6 +118,19 @@ export const useFamilyLogic = () => {
           rq.push({ id: sid, up, down });
         }
       });
+
+      // D) HERMANOS: Se mantienen en el mismo nivel de parentesco
+      // Esto permite que aparezcan tíos y sobrinos colaterales
+      (p.siblings || []).forEach(bid => {
+        if (!nodeCoords.has(bid)) {
+          // Si estamos bajando, es un sobrino o primo
+          // Si estamos en el foco, es un hermano (up=1, down=1)
+          // Si estamos en ancestros, es un tío (up=2, down=1)
+          // Usamos la lógica de up y down relativa
+          nodeCoords.set(bid, { up, down });
+          rq.push({ id: bid, up, down });
+        }
+      });
     }
 
     const getRelLabel = (p: Person, up: number, down: number) => {
