@@ -436,6 +436,37 @@ export const FamilyTree: React.FC = () => {
     // Esto evita cambios drásticos cuando seleccionas a un abuelo
     const shouldApplyFamilySeparation = focusContainerItem?.kind === 'couple' && (focusHasChildrenInTree || focusHasParentsInTree);
 
+    // 2b. Asegurar el orden interno de las parejas basado en el linaje ANTES de posicionar
+    nodeItems.forEach(item => {
+      if (item.kind === 'couple') {
+        const p1Id = item.person1Id!;
+        const p2Id = item.person2Id!;
+
+        const p1IsLeft = leftLineage.has(p1Id) || leftFamily.has(p1Id);
+        const p2IsLeft = leftLineage.has(p2Id) || leftFamily.has(p2Id);
+        const p1IsRight = rightLineage.has(p1Id) || rightFamily.has(p1Id);
+        const p2IsRight = rightLineage.has(p2Id) || rightFamily.has(p2Id);
+
+        let shouldSwap = false;
+        // Si p2 es de la rama izquierda y p1 no, swap
+        if (p2IsLeft && !p1IsLeft) shouldSwap = true;
+        // Si p1 es de la rama derecha y p2 no, swap
+        else if (p1IsRight && !p2IsRight) shouldSwap = true;
+
+        if (shouldSwap) {
+          item.person1Id = p2Id;
+          item.person2Id = p1Id;
+          const tmpParents = item.p1Parents;
+          item.p1Parents = item.p2Parents;
+          item.p2Parents = tmpParents;
+          const d: any = item.node.data;
+          const tmpPerson = d.person1;
+          d.person1 = d.person2;
+          d.person2 = tmpPerson;
+        }
+      }
+    });
+
     type FamilySide = 'left' | 'center' | 'right';
     const sideOfItemBase = (item: NodeItem): FamilySide => {
       if (item.id === focusContainerId) return 'center';
@@ -510,50 +541,28 @@ export const FamilyTree: React.FC = () => {
     };
 
     // Sesgo de orden: cuñados a la izquierda (lado de la pareja), hermanos propios a la derecha.
-    const biasOfItem = (item: NodeItem): FamilySide => {
+    const biasOfItem = (item: NodeItem): number => {
+      // Devolvemos un número para sortear: negativo = izquierda, positivo = derecha
       const d: any = item.node.data;
-      const rel = item.kind === 'person'
-        ? d?.relationType
-        : (d?.person1?.relationType === 'PartnerSibling' || d?.person2?.relationType === 'PartnerSibling')
-          ? 'PartnerSibling'
-          : (d?.person1?.relationType === 'Sibling' || d?.person2?.relationType === 'Sibling')
-            ? 'Sibling'
-            : null;
 
-      // --- SESGO POR LINAJE RECURSIVO ---
-      // Si el item pertenece al linaje izquierdo (familia del padre), bias left.
-      // Si al derecho (familia de la madre), bias right.
-      const isLeftLineage = item.members.some(m => leftLineage.has(m));
-      const isRightLineage = item.members.some(m => rightLineage.has(m));
+      // Matrimonio principal siempre al centro (0)
+      if (item.id === focusContainerId) return 0;
 
-      if (isLeftLineage && !isRightLineage) return 'left';
-      if (isRightLineage && !isLeftLineage) return 'right';
+      // Si es de la familia izquierda pura
+      const isLeft = item.members.some(m => leftLineage.has(m) || leftFamily.has(m));
+      const isRight = item.members.some(m => rightLineage.has(m) || rightFamily.has(m));
 
-      // El matrimonio principal (Padres) de la generación -1 siempre al centro para ser el eje local
-      if (item.gen === -1) {
-        if (d?.relationType === 'Parent' || d?.person1?.relationType === 'Parent' || d?.person2?.relationType === 'Parent') return 'center';
+      if (isLeft && !isRight) return -100;
+      if (isRight && !isLeft) return 100;
 
-        const pLeftSibs = siblingsById.get(leftRootPersonId || '') || [];
-        const pRightSibs = siblingsById.get(rightRootPersonId || '') || [];
-
-        // Identificar quién es el pariente de sangre en este nodo para tíos
-        const bloodId = item.kind === 'person' ? item.id :
-          (pLeftSibs.includes(item.person1Id!) || pRightSibs.includes(item.person1Id!)) ? item.person1Id : item.person2Id;
-
-        if (bloodId && pLeftSibs.includes(bloodId)) return 'left';
-        if (bloodId && pRightSibs.includes(bloodId)) return 'right';
+      // Caso Hermanos/Sobrinos en gen 0
+      if (item.gen === 0) {
+        const rel = item.kind === 'person' ? d?.relationType : (d?.person1?.relationType || d?.person2?.relationType);
+        if (rel === 'Sibling') return 50;
+        if (rel === 'PartnerSibling') return -50;
       }
 
-      if (item.gen === 0 && (item.id === layoutRootId || item.members.includes(layoutRootId))) return 'right';
-
-      // Bias dinámico basado en las familias de hermanos/primos
-      const myId = item.kind === 'person' ? item.id : item.person1Id;
-      const partnerId = item.kind === 'couple' ? item.person2Id : null;
-
-      if (leftFamily.has(myId!) || (partnerId && leftFamily.has(partnerId))) return 'left';
-      if (rightFamily.has(myId!) || (partnerId && rightFamily.has(partnerId))) return 'right';
-
-      return sideOfItem(item);
+      return 0;
     };
 
     const getNodeCenter = (nodeId: string): number | null => {
@@ -641,11 +650,13 @@ export const FamilyTree: React.FC = () => {
 
     // Identificar qué nodos (NodeItems) son "raíces" (no tienen padres en el árbol visible)
     const getRoots = (): NodeItem[] => {
-      return nodeItems.filter(item => {
+      const roots = nodeItems.filter(item => {
         const parents = item.kind === 'person' ? item.personParents : item.p1Parents;
         if (!parents || parents.length === 0) return true;
         return !parents.some(pId => personToContainer.has(pId));
       });
+      // Importante: ordenar raíces para que la rama izquierda esté a la izquierda
+      return roots.sort((a, b) => biasOfItem(a) - biasOfItem(b));
     };
 
     // Obtener los hijos directos de un NodeItem
@@ -684,7 +695,9 @@ export const FamilyTree: React.FC = () => {
       // A. Layout de los hijos (Recursivo)
       let childrenBlock: LayoutResult | null = null;
       if (children.length > 0) {
-        const childrenResults = children.map(child => layoutFamilyBlock(child.id, gen + 1));
+        // Ordenar hijos por sesgo antes de posicionar
+        const sortedChildren = [...children].sort((a, b) => biasOfItem(a) - biasOfItem(b));
+        const childrenResults = sortedChildren.map(child => layoutFamilyBlock(child.id, gen + 1));
 
         let totalW = 0;
         const nodes: Node[] = [];
