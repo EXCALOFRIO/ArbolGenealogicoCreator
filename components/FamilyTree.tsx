@@ -262,10 +262,16 @@ export const FamilyTree: React.FC = () => {
       const p1 = d?.person1;
       const p2 = d?.person2;
       if (p1?.id && p2?.id) {
-        const focusPerson = p1.id === layoutRootId ? p1 : p2.id === layoutRootId ? p2 : p1;
-        const partnerPerson = p1.id === layoutRootId ? p2 : p2.id === layoutRootId ? p1 : p2;
-        leftRootPersonId = partnerPerson?.id || null;
-        rightRootPersonId = focusPerson?.id || null;
+        // ACTUALIZACIÓN: Asignación ESTABLE de raíces.
+        // Siempre mujer a la izquierda y hombre a la derecha,
+        // sin importar quién sea el foco seleccionado.
+        if (p1.gender === 'Female') {
+          leftRootPersonId = p1.id;
+          rightRootPersonId = p2.id;
+        } else {
+          leftRootPersonId = p2.id;
+          rightRootPersonId = p1.id;
+        }
       }
     }
 
@@ -479,7 +485,34 @@ export const FamilyTree: React.FC = () => {
         side = 'center';
       }
 
-      // Consuegros: solo separar si el foco tiene sus propios padres en el árbol
+      // 2. Lógica Gen -1 (Tíos/Padres) - ¡ESTA ES LA CLAVE!
+      // Si eres hermano del Padre Raíz o de la Madre Raíz, vas al CENTRO obligatoriamente.
+      if (item.gen === -1) {
+        const pLeftSibs = siblingsById.get(leftRootPersonId || '') || [];
+        const pRightSibs = siblingsById.get(rightRootPersonId || '') || [];
+
+        // --- NUEVO: Detección robusta por padres compartidos ---
+        const leftRoot = familyById.get(leftRootPersonId || '');
+        const rightRoot = familyById.get(rightRootPersonId || '');
+        const itemParents = item.kind === 'person' ? item.personParents : item.p1Parents;
+
+        const sharesWithLeft = leftRoot?.parents?.some((p: string) => itemParents?.includes(p));
+        const sharesWithRight = rightRoot?.parents?.some((p: string) => itemParents?.includes(p));
+        // ------------------------------------------------------
+
+        const myId = item.kind === 'person' ? item.id : item.person1Id;
+        const partnerId = item.kind === 'couple' ? item.person2Id : null;
+
+        // Si eres el padre/madre raíz, o hermano de ellos -> CENTRO
+        if (item.id === leftRootPersonId || item.id === rightRootPersonId ||
+          pLeftSibs.includes(myId!) || pRightSibs.includes(myId!) ||
+          sharesWithLeft || sharesWithRight ||
+          (partnerId && (pLeftSibs.includes(partnerId) || pRightSibs.includes(partnerId)))) {
+          side = 'center';
+        }
+      }
+
+      // 3. Consuegros: solo separar si el foco tiene sus propios padres en el árbol
       if (rel === 'Consuegro' || rel === 'Consuegra') {
         side = focusHasParentsInTree ? 'left' : 'center';
       }
@@ -507,37 +540,31 @@ export const FamilyTree: React.FC = () => {
             ? 'Sibling'
             : null;
 
-      // GENERACIÓN -1: mantener al padre/madre del foco en el centro,
-      // y empujar tíos/tías a los lados según género (tías a la izquierda).
-      // Esto reduce cruces cuando hay tíos + parejas de tíos.
+      // --- CORRECCIÓN EN GEN -1 (PADRES/TÍOS) ---
       if (item.gen === -1) {
-        const rel2 = item.kind === 'person'
-          ? d?.relationType
-          : (d?.person1?.relationType === 'Uncle/Aunt' || d?.person2?.relationType === 'Uncle/Aunt')
-            ? 'Uncle/Aunt'
-            : (d?.person1?.relationType === 'UnclePartner' || d?.person2?.relationType === 'UnclePartner')
-              ? 'UnclePartner'
-              : null;
+        const d: any = item.node.data;
+        // El matrimonio principal (Padres) siempre al centro para ser el eje
+        if (d?.relationType === 'Parent' || d?.person1?.relationType === 'Parent' || d?.person2?.relationType === 'Parent') return 'center';
 
-        if (rel2 === 'Parent') return 'center';
+        const pLeftSibs = siblingsById.get(leftRootPersonId || '') || [];
+        const pRightSibs = siblingsById.get(rightRootPersonId || '') || [];
 
-        // Para parejas de tíos, decidir por el miembro que es tío/tía (no la pareja política)
-        if (rel2 === 'Uncle/Aunt') {
-          if (item.kind === 'person') {
-            const p = familyById.get(item.members[0]);
-            return p?.gender === 'Female' ? 'left' : 'right';
-          }
+        // Robust check by parents
+        const leftRoot = familyById.get(leftRootPersonId || '');
+        const rightRoot = familyById.get(rightRootPersonId || '');
+        const itemParents = item.kind === 'person' ? item.personParents : item.p1Parents;
 
-          if (item.kind === 'couple') {
-            const p1Rel = d?.person1?.relationType;
-            const p2Rel = d?.person2?.relationType;
-            const bloodId = p1Rel === 'Uncle/Aunt'
-              ? item.person1Id
-              : (p2Rel === 'Uncle/Aunt' ? item.person2Id : item.person1Id);
-            const blood = bloodId ? familyById.get(bloodId) : null;
-            return blood?.gender === 'Female' ? 'left' : 'right';
-          }
-        }
+        // Identificar quién es el pariente de sangre en este nodo
+        const bloodId = item.kind === 'person' ? item.id :
+          (pLeftSibs.includes(item.person1Id!) || pRightSibs.includes(item.person1Id!)) ? item.person1Id : item.person2Id;
+
+        // Si es hermano del padre (LeftRoot) -> bias Left (izquierda del matrimonio)
+        if (bloodId && pLeftSibs.includes(bloodId)) return 'left';
+        if (leftRoot?.parents?.some((p: string) => itemParents?.includes(p))) return 'left';
+
+        // Si es hermano de la madre (RightRoot) -> bias Right (derecha del matrimonio)
+        if (bloodId && pRightSibs.includes(bloodId)) return 'right';
+        if (rightRoot?.parents?.some((p: string) => itemParents?.includes(p))) return 'right';
       }
 
       if (item.gen === 0 && rel === 'PartnerSibling') return 'left';
@@ -680,6 +707,14 @@ export const FamilyTree: React.FC = () => {
       const ungrouped: NodeItem[] = [];
 
       const getGroupKey = (item: NodeItem): string | null => {
+        // --- ACTUALIZACIÓN: CLUSTER CENTRAL UNIVERSAL ---
+        // Esto agrupa a la pareja principal y sus hermanos en una sola fila compacta
+        // en CUALQUIER generación, no solo en la -1.
+        if (sideOfItem(item) === 'center') {
+          return `GEN_${gen}_CENTER_CLUSTER`;
+        }
+        // ------------------------------------------
+
         if (item.kind === 'person') {
           const key = parentPairKey(item.personParents);
           if (key) return key;
@@ -718,9 +753,12 @@ export const FamilyTree: React.FC = () => {
       // 2) Calcular desiredLeft para cada item
       const desired: { id: string; width: number; desiredLeft: number }[] = [];
 
-      // A) Grupos centrados bajo padres
-      // Nuevo: Ordenar las claves de los grupos por la posición X de los padres
+      // A) Grupos
       const sortedGroupKeys = Array.from(groups.keys()).sort((keyA, keyB) => {
+        // El cluster central siempre tiene prioridad o se trata neutro
+        if (keyA.includes('_CENTER_CLUSTER')) return 0;
+        if (keyB.includes('_CENTER_CLUSTER')) return 0;
+
         let centerA = 0;
         let centerB = 0;
 
@@ -747,9 +785,38 @@ export const FamilyTree: React.FC = () => {
 
       sortedGroupKeys.forEach((key) => {
         const items = groups.get(key)!;
-        // anchor center
         let anchorCenter: number | null = null;
-        if (key.startsWith('single:')) {
+
+        // --- ACTUALIZACIÓN: LÓGICA ESPECIAL PARA EL CLUSTER CENTRAL ---
+        if (key.includes('_CENTER_CLUSTER')) {
+          // CALCULAR ANCHOR DINÁMICO (Promedio de la posición de los padres)
+          const parentCenters: number[] = [];
+          items.forEach(it => {
+            const parents = it.kind === 'person' ? it.personParents : it.p1Parents;
+            if (parents && parents.length > 0) {
+              const cpKey = parentPairKey(parents);
+              if (cpKey) {
+                const cX = getParentCoupleCenter(cpKey.split('|'));
+                if (cX != null) parentCenters.push(cX);
+              } else {
+                const pId = parents[0];
+                const cId = personToContainer.get(pId);
+                if (cId) {
+                  const cX = getNodeCenter(cId);
+                  if (cX != null) parentCenters.push(cX);
+                }
+              }
+            }
+          });
+
+          if (parentCenters.length > 0) {
+            anchorCenter = parentCenters.reduce((a, b) => a + b, 0) / parentCenters.length;
+          } else {
+            anchorCenter = 0; // Fallback
+          }
+        }
+        // -----------------------------------------------------
+        else if (key.startsWith('single:')) {
           const pid = key.replace('single:', '');
           const containerId = personToContainer.get(pid);
           if (containerId) anchorCenter = getNodeCenter(containerId);
@@ -762,7 +829,7 @@ export const FamilyTree: React.FC = () => {
         }
 
         // Si solo hay un item, centrarlo exactamente bajo los padres
-        if (items.length === 1) {
+        if (items.length === 1 && !key.includes('_CENTER_CLUSTER')) {
           const it = items[0];
           desired.push({ id: it.id, width: it.width, desiredLeft: anchorCenter - it.width / 2 });
           return;
@@ -784,10 +851,13 @@ export const FamilyTree: React.FC = () => {
             // Si el side es igual, usar el bias (importante para hermanos/cuñados)
             const biasA = biasOfItem(a);
             const biasB = biasOfItem(b);
-            if (biasA === 'left' && biasB !== 'left') return -1;
-            if (biasA !== 'left' && biasB === 'left') return 1;
-            if (biasA === 'right' && biasB !== 'right') return 1;
-            if (biasA !== 'right' && biasB === 'right') return -1;
+
+            // Esto asegura que el matrimonio (bias center) quede en medio de los hermanos (bias left/right)
+            const score = (bias: string) => bias === 'left' ? 0 : bias === 'center' ? 1 : 2;
+            const sA = score(biasA);
+            const sB = score(biasB);
+
+            if (sA !== sB) return sA - sB;
 
             return a.id > b.id ? 1 : -1;
           })

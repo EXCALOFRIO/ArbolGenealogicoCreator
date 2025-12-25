@@ -248,8 +248,10 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
 
   setFocusId: (id) => set((state) => ({
     focusId: id,
-    // Si todavía no hay raíz estable (primer uso), fijarla.
-    viewRootId: state.viewRootId || id,
+    // ACTUALIZACIÓN: Forzar la raíz de la vista al nuevo foco para que el árbol 
+    // se recalcule desde la perspectiva de la persona seleccionada (YO).
+    // Esto asegura que sus padres y hermanos sean visibles.
+    viewRootId: id,
   })),
 
   setViewRootId: (id) => set({ viewRootId: id }),
