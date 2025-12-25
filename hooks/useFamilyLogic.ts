@@ -119,16 +119,17 @@ export const useFamilyLogic = () => {
         }
       });
 
-      // D) HERMANOS: Se mantienen en el mismo nivel de parentesco
-      // Esto permite que aparezcan tíos y sobrinos colaterales
+      // D) HERMANOS: Los hermanos comparten padres, así que es subir a los padres y bajar al hermano
+      // Esto da coordenadas {up+1, down+1} que resulta en la etiqueta "Hermano/Hermana"
       (p.siblings || []).forEach(bid => {
         if (!nodeCoords.has(bid)) {
-          // Si estamos bajando, es un sobrino o primo
-          // Si estamos en el foco, es un hermano (up=1, down=1)
-          // Si estamos en ancestros, es un tío (up=2, down=1)
-          // Usamos la lógica de up y down relativa
-          nodeCoords.set(bid, { up, down });
-          rq.push({ id: bid, up, down });
+          // Desde el foco (0,0): hermano es (1,1)
+          // Desde un padre (1,0): hermano del padre (tío) es (1,1) → se convierte en (2,1) desde el foco
+          // Usamos up+1, down+1 para reflejar que compartimos padres
+          const sibUp = down === 0 ? up + 1 : up;
+          const sibDown = down === 0 ? 1 : down + 1;
+          nodeCoords.set(bid, { up: sibUp, down: sibDown });
+          rq.push({ id: bid, up: sibUp, down: sibDown });
         }
       });
     }
