@@ -246,7 +246,14 @@ export const useFamilyLogic = () => {
     siblings.forEach(sibling => {
       sibling.children.forEach(nephewId => {
         const nephew = getPerson(nephewId);
-        if (nephew) addNode(nephew, 1, nephew.gender === 'Male' ? 'Sobrino' : 'Sobrina');
+        if (nephew) {
+          addNode(nephew, 1, nephew.gender === 'Male' ? 'Sobrino' : 'Sobrina');
+          // Añadir parejas de sobrinos
+          nephew.partners.forEach(pid => {
+            const partner = getPerson(pid);
+            if (partner) addNode(partner, 1, 'NephewPartner');
+          });
+        }
       });
     });
 
@@ -277,7 +284,14 @@ export const useFamilyLogic = () => {
       if (child) {
         child.children.forEach(gcId => {
           const gc = getPerson(gcId);
-          if (gc) addNode(gc, 2, 'Grandchild');
+          if (gc) {
+            addNode(gc, 2, 'Grandchild');
+            // Añadir parejas de nietos
+            gc.partners.forEach(pid => {
+              const partner = getPerson(pid);
+              if (partner) addNode(partner, 2, 'GrandchildPartner');
+            });
+          }
         });
       }
     });
@@ -303,6 +317,13 @@ export const useFamilyLogic = () => {
         const c = getPerson(cid);
         if (!c) return;
         addNode(c, nextDepth, `Descendant${nextDepth}`);
+
+        // Añadir parejas de descendientes (bisnietos etc)
+        c.partners.forEach(pid => {
+          const partner = getPerson(pid);
+          if (partner) addNode(partner, nextDepth, `Descendant${nextDepth}Partner`);
+        });
+
         descQueue.push({ person: c, depth: nextDepth });
       });
     }
