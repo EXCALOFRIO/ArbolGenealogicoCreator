@@ -1,6 +1,25 @@
 import { create } from 'zustand';
 import { Person, RelationContext } from '../types';
 
+// Tipos de temas visuales disponibles
+export type VisualTheme = 'modern' | 'rustic';
+export type TextCase = 'uppercase' | 'capitalize';
+
+// Función para calcular el texto más largo
+const getMaxTextLengths = (people: Person[]): { maxNameLength: number; maxSurnamesLength: number } => {
+  if (people.length === 0) return { maxNameLength: 0, maxSurnamesLength: 0 };
+  
+  let maxNameLength = 0;
+  let maxSurnamesLength = 0;
+  
+  for (const person of people) {
+    if (person.name.length > maxNameLength) maxNameLength = person.name.length;
+    if (person.surnames.length > maxSurnamesLength) maxSurnamesLength = person.surnames.length;
+  }
+  
+  return { maxNameLength, maxSurnamesLength };
+};
+
 interface FamilyState {
   people: Person[];
   focusId: string;
@@ -8,11 +27,18 @@ interface FamilyState {
   viewRootId: string;
   viewMode: 'tree' | 'list';
   theme: 'dark' | 'light';
+  // Tema visual (estilo de presentación)
+  visualTheme: VisualTheme;
+  // Capitalización de texto
+  textCase: TextCase;
   isModalOpen: boolean;
   modalContext: RelationContext;
   editingPerson: Person | null;
   isExporting: boolean;
   setIsExporting: (isExporting: boolean) => void;
+  
+  // Obtener longitudes máximas de texto
+  getMaxTextLengths: () => { maxNameLength: number; maxSurnamesLength: number };
 
   exportRelationships: () => {
     version: 2;
@@ -32,6 +58,8 @@ interface FamilyState {
   setViewMode: (mode: 'tree' | 'list') => void;
   setTheme: (theme: 'dark' | 'light') => void;
   toggleTheme: () => void;
+  setVisualTheme: (visualTheme: VisualTheme) => void;
+  setTextCase: (textCase: TextCase) => void;
   openAddModal: (context: RelationContext) => void;
   openEditModal: (person: Person) => void;
   closeAddModal: () => void;
@@ -61,11 +89,31 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       return 'dark';
     }
   })(),
+  visualTheme: (() => {
+    try {
+      const stored = window.localStorage.getItem('agc_visual_theme') as VisualTheme;
+      if (stored === 'modern' || stored === 'rustic') return stored;
+      return 'modern';
+    } catch {
+      return 'modern';
+    }
+  })(),
+  textCase: (() => {
+    try {
+      const stored = window.localStorage.getItem('agc_text_case') as TextCase;
+      if (stored === 'uppercase' || stored === 'capitalize') return stored;
+      return 'uppercase';
+    } catch {
+      return 'uppercase';
+    }
+  })(),
   isModalOpen: false,
   modalContext: 'None',
   editingPerson: null,
   isExporting: false,
   setIsExporting: (isExporting) => set({ isExporting }),
+  
+  getMaxTextLengths: () => getMaxTextLengths(get().people),
 
 
   exportRelationships: () => {
@@ -275,6 +323,24 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       // ignore
     }
     set({ theme: next });
+  },
+
+  setVisualTheme: (visualTheme) => {
+    try {
+      window.localStorage.setItem('agc_visual_theme', visualTheme);
+    } catch {
+      // ignore
+    }
+    set({ visualTheme });
+  },
+
+  setTextCase: (textCase) => {
+    try {
+      window.localStorage.setItem('agc_text_case', textCase);
+    } catch {
+      // ignore
+    }
+    set({ textCase });
   },
 
   openAddModal: (context) => set({ isModalOpen: true, modalContext: context, editingPerson: null }),

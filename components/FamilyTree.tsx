@@ -522,18 +522,50 @@ export const FamilyTree: React.FC = () => {
         p1Siblings.forEach(sib => {
           const sibEstVisited = new Set(visited);
           sibEstVisited.delete(sib.id);
-          const sibDescWidth = Math.max(SINGLE_WIDTH, calcDescendantsWidth([sib.id], sibEstVisited));
-          const sibWidth = Math.max(SINGLE_WIDTH, sibDescWidth);
-          const sibCenterX = leftBoundaryX - sibWidth / 2;
-          const nodeX = sibCenterX - SINGLE_WIDTH / 2;
+          
+          // Verificar si el tío tiene pareja
+          const sibPartnerId = sib.partners?.[0];
+          const sibPartner = sibPartnerId && !visited.has(sibPartnerId) ? familyById.get(sibPartnerId) : null;
+          
+          if (sibPartner) {
+            // Tío con pareja política - renderizar como CoupleNode
+            const sibDescWidth = Math.max(COUPLE_WIDTH, calcDescendantsWidth([sib.id, sibPartner.id], sibEstVisited));
+            const sibWidth = Math.max(COUPLE_WIDTH, sibDescWidth);
+            const sibCenterX = leftBoundaryX - sibWidth / 2;
+            const nodeX = sibCenterX - COUPLE_WIDTH / 2;
+            
+            // Ordenar: hombre a la izquierda
+            const [uncle1, uncle2] = sib.gender === 'Male' ? [sib, sibPartner] : [sibPartner, sib];
+            const coupleId = `couple-${uncle1.id}-${uncle2.id}`;
 
-          visited.add(sib.id);
-          flowNodes.push({ id: sib.id, type: 'person', position: { x: nodeX, y: parentY }, data: sib });
-          nodePositions.set(sib.id, { x: nodeX, y: parentY });
-          renderDescendants([sib.id], sibCenterX, parentY, 1);
+            visited.add(sib.id);
+            visited.add(sibPartner.id);
+            flowNodes.push({
+              id: coupleId,
+              type: 'couple',
+              position: { x: nodeX, y: parentY },
+              data: { person1: uncle1, person2: uncle2 },
+            });
+            nodePositions.set(coupleId, { x: nodeX, y: parentY });
+            renderDescendants([sib.id, sibPartner.id], sibCenterX, parentY, 1);
 
-          p1GroupLeft = Math.min(p1GroupLeft, nodeX);
-          leftBoundaryX -= sibWidth + COUSIN_GAP;
+            p1GroupLeft = Math.min(p1GroupLeft, nodeX);
+            leftBoundaryX -= sibWidth + COUSIN_GAP;
+          } else {
+            // Tío soltero - renderizar como nodo individual
+            const sibDescWidth = Math.max(SINGLE_WIDTH, calcDescendantsWidth([sib.id], sibEstVisited));
+            const sibWidth = Math.max(SINGLE_WIDTH, sibDescWidth);
+            const sibCenterX = leftBoundaryX - sibWidth / 2;
+            const nodeX = sibCenterX - SINGLE_WIDTH / 2;
+
+            visited.add(sib.id);
+            flowNodes.push({ id: sib.id, type: 'person', position: { x: nodeX, y: parentY }, data: sib });
+            nodePositions.set(sib.id, { x: nodeX, y: parentY });
+            renderDescendants([sib.id], sibCenterX, parentY, 1);
+
+            p1GroupLeft = Math.min(p1GroupLeft, nodeX);
+            leftBoundaryX -= sibWidth + COUSIN_GAP;
+          }
         });
         const p1GroupCenterX = (p1GroupLeft + p1GroupRight) / 2;
 
@@ -545,18 +577,50 @@ export const FamilyTree: React.FC = () => {
         p2Siblings.forEach(sib => {
           const sibEstVisited = new Set(visited);
           sibEstVisited.delete(sib.id);
-          const sibDescWidth = Math.max(SINGLE_WIDTH, calcDescendantsWidth([sib.id], sibEstVisited));
-          const sibWidth = Math.max(SINGLE_WIDTH, sibDescWidth);
-          const sibCenterX = rightBoundaryX + sibWidth / 2;
-          const nodeX = sibCenterX - SINGLE_WIDTH / 2;
+          
+          // Verificar si el tío tiene pareja
+          const sibPartnerId = sib.partners?.[0];
+          const sibPartner = sibPartnerId && !visited.has(sibPartnerId) ? familyById.get(sibPartnerId) : null;
+          
+          if (sibPartner) {
+            // Tío con pareja política - renderizar como CoupleNode
+            const sibDescWidth = Math.max(COUPLE_WIDTH, calcDescendantsWidth([sib.id, sibPartner.id], sibEstVisited));
+            const sibWidth = Math.max(COUPLE_WIDTH, sibDescWidth);
+            const sibCenterX = rightBoundaryX + sibWidth / 2;
+            const nodeX = sibCenterX - COUPLE_WIDTH / 2;
+            
+            // Ordenar: hombre a la izquierda
+            const [uncle1, uncle2] = sib.gender === 'Male' ? [sib, sibPartner] : [sibPartner, sib];
+            const coupleId = `couple-${uncle1.id}-${uncle2.id}`;
 
-          visited.add(sib.id);
-          flowNodes.push({ id: sib.id, type: 'person', position: { x: nodeX, y: parentY }, data: sib });
-          nodePositions.set(sib.id, { x: nodeX, y: parentY });
-          renderDescendants([sib.id], sibCenterX, parentY, 1);
+            visited.add(sib.id);
+            visited.add(sibPartner.id);
+            flowNodes.push({
+              id: coupleId,
+              type: 'couple',
+              position: { x: nodeX, y: parentY },
+              data: { person1: uncle1, person2: uncle2 },
+            });
+            nodePositions.set(coupleId, { x: nodeX, y: parentY });
+            renderDescendants([sib.id, sibPartner.id], sibCenterX, parentY, 1);
 
-          p2GroupRight = Math.max(p2GroupRight, nodeX + SINGLE_WIDTH);
-          rightBoundaryX += sibWidth + COUSIN_GAP;
+            p2GroupRight = Math.max(p2GroupRight, nodeX + COUPLE_WIDTH);
+            rightBoundaryX += sibWidth + COUSIN_GAP;
+          } else {
+            // Tío soltero - renderizar como nodo individual
+            const sibDescWidth = Math.max(SINGLE_WIDTH, calcDescendantsWidth([sib.id], sibEstVisited));
+            const sibWidth = Math.max(SINGLE_WIDTH, sibDescWidth);
+            const sibCenterX = rightBoundaryX + sibWidth / 2;
+            const nodeX = sibCenterX - SINGLE_WIDTH / 2;
+
+            visited.add(sib.id);
+            flowNodes.push({ id: sib.id, type: 'person', position: { x: nodeX, y: parentY }, data: sib });
+            nodePositions.set(sib.id, { x: nodeX, y: parentY });
+            renderDescendants([sib.id], sibCenterX, parentY, 1);
+
+            p2GroupRight = Math.max(p2GroupRight, nodeX + SINGLE_WIDTH);
+            rightBoundaryX += sibWidth + COUSIN_GAP;
+          }
         });
         const p2GroupCenterX = (p2GroupLeft + p2GroupRight) / 2;
 
@@ -809,7 +873,7 @@ export const FamilyTree: React.FC = () => {
         zoomOnPinch={true}
         zoomOnDoubleClick={true}
         preventScrolling={true}
-        fitViewOptions={{ padding: 0.4, duration: 400 }}
+        fitViewOptions={{ padding: 0.6, duration: 400 }}
         connectionLineType={ConnectionLineType.SmoothStep}
         defaultEdgeOptions={{
           type: 'smoothstep',

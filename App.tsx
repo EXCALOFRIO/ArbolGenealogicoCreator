@@ -6,12 +6,13 @@ import { Controls } from './components/Controls';
 import { ActionMenu } from './components/ActionMenu';
 import { HomeButton } from './components/HomeButton';
 import { DebugControls } from './components/DebugControls';
-import { ThemeToggle } from './components/ThemeToggle';
+import { SettingsMenu } from './components/SettingsMenu';
 import { useFamilyStore } from './store/familyStore';
 
 const App: React.FC = () => {
   const viewMode = useFamilyStore(s => s.viewMode);
   const theme = useFamilyStore(s => s.theme);
+  const visualTheme = useFamilyStore(s => s.visualTheme);
   const isExporting = useFamilyStore(s => s.isExporting);
 
   useEffect(() => {
@@ -28,11 +29,18 @@ const App: React.FC = () => {
     }
   }, [theme]);
 
+  // Clase del tema visual (modern o rustic)
+  const visualThemeClass = `visual-theme-${visualTheme}`;
+  const exportingClass = isExporting ? 'exporting' : '';
+
   return (
     <ReactFlowProvider>
-      <div style={{ color: 'var(--app-text)' }} className="min-h-screen font-sans overflow-hidden relative">
+      <div 
+        style={{ color: 'var(--app-text)' }} 
+        className={`min-h-screen font-sans overflow-hidden relative ${visualThemeClass} ${exportingClass}`}
+      >
         {!isExporting && <HomeButton />}
-        {!isExporting && <ThemeToggle />}
+        {!isExporting && <SettingsMenu />}
         {!isExporting && <Controls />}
         {viewMode === 'list' ? <FamilyListView /> : <FamilyTree />}
         {!isExporting && <ActionMenu />}

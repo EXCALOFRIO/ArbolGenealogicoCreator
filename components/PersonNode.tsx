@@ -8,9 +8,13 @@ import { useIsMobile } from '../hooks/useIsMobile';
 export const PersonNode = memo(({ data }: { data: RenderNode }) => {
   const setFocusId = useFamilyStore(state => state.setFocusId);
   const focusId = useFamilyStore(state => state.focusId);
+  const visualTheme = useFamilyStore(state => state.visualTheme);
+  const textCase = useFamilyStore(state => state.textCase);
+  const people = useFamilyStore(state => state.people);
   const isMobile = useIsMobile();
   const colors = getGroupColor(data.surnames);
   const isFocus = data.id === focusId;
+  const isRustic = visualTheme === 'rustic';
 
   const initials = data.name.substring(0, 2).toUpperCase();
 
@@ -64,6 +68,91 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
 
   const label = isFocus ? 'YO' : getRelationLabel(data.relationType, data.gender);
 
+  // Función para formatear texto según textCase
+  const formatText = (text: string) => {
+    if (textCase === 'uppercase') {
+      return text.toUpperCase();
+    }
+    // capitalize: primera letra de cada palabra en mayúscula
+    // Usar split/map para manejar correctamente caracteres españoles (ñ, acentos)
+    return text
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  // Calcular tamaño de fuente dinámico basado en el texto más largo
+  const getRusticFontSizes = () => {
+    // Encontrar el nombre y apellido más largo
+    let maxNameLen = 0;
+    let maxSurnamesLen = 0;
+    for (const p of people) {
+      const formattedName = formatText(p.name);
+      const formattedSurnames = formatText(p.surnames);
+      if (formattedName.length > maxNameLen) maxNameLen = formattedName.length;
+      if (formattedSurnames.length > maxSurnamesLen) maxSurnamesLen = formattedSurnames.length;
+    }
+    
+    // Ancho fijo de la caja (sin padding)
+    const boxWidth = 110; // px
+    
+    // Calcular tamaño de fuente para que quepa el texto más largo
+    // Aproximación: cada carácter ocupa ~0.6 * fontSize en Cinzel
+    const charWidthRatioName = 0.65;
+    const charWidthRatioSurnames = 0.55;
+    
+    const nameFontSize = Math.min(13, Math.max(8, Math.floor(boxWidth / (maxNameLen * charWidthRatioName))));
+    const surnamesFontSize = Math.min(11, Math.max(7, Math.floor(boxWidth / (maxSurnamesLen * charWidthRatioSurnames))));
+    
+    return { nameFontSize, surnamesFontSize };
+  };
+
+  // ============ TEMA RÚSTICO ============
+  if (isRustic) {
+    const { nameFontSize, surnamesFontSize } = getRusticFontSizes();
+    
+    return (
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          setFocusId(data.id);
+        }}
+        className="rustic-node relative flex flex-col items-center justify-center cursor-pointer py-2 px-3 w-[120px]"
+      >
+        <Handle type="target" position={Position.Top} className="!bg-transparent !border-none !w-full !h-3 !top-0" />
+        <Handle type="source" position={Position.Bottom} className="!bg-transparent !border-none !w-full !h-3 !bottom-0" />
+        <Handle type="source" position={Position.Left} id="left" className="!bg-transparent !border-none" />
+        <Handle type="source" position={Position.Right} id="right" className="!bg-transparent !border-none" />
+
+        {/* Nombre */}
+        <h3 
+          className="node-name text-center whitespace-nowrap"
+          style={{ fontSize: `${nameFontSize}px` }}
+        >
+          {formatText(data.name)}
+        </h3>
+        
+        {/* Línea divisoria */}
+        <div className="rustic-divider w-full h-[1px] my-1" />
+        
+        {/* Apellidos - cada uno en su línea */}
+        <div className="flex flex-col items-center">
+          {data.surnames.split(' ').map((surname, idx) => (
+            <p 
+              key={idx}
+              className="node-surnames text-center whitespace-nowrap leading-tight"
+              style={{ fontSize: `${surnamesFontSize}px` }}
+            >
+              {formatText(surname)}
+            </p>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ============ TEMA MODERNO (ORIGINAL) ============
   // Móvil: tarjeta compacta vertical (más estrecha y alta)
   if (isMobile) {
     return (
@@ -118,8 +207,18 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
           {label}
         </span>
         <div className="flex flex-col items-center mt-0.5 w-full px-1">
-          <h3 style={{ color: 'var(--app-text)' }} className="text-[11px] font-semibold leading-tight text-center break-words w-full">{data.name}</h3>
-          <p style={{ color: 'var(--app-text-muted)' }} className="text-[9px] text-center leading-tight mt-0.5 break-words w-full">{data.surnames}</p>
+          <h3 
+            style={{ color: 'var(--app-text)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
+            className="text-[11px] font-semibold leading-tight text-center break-words w-full"
+          >
+            {data.name}
+          </h3>
+          <p 
+            style={{ color: 'var(--app-text-muted)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
+            className="text-[9px] text-center leading-tight mt-0.5 break-words w-full"
+          >
+            {data.surnames}
+          </p>
         </div>
       </div>
     );
@@ -178,8 +277,18 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
         {label}
       </span>
       <div className="flex flex-col items-center mt-1 w-full px-1">
-        <h3 style={{ color: 'var(--app-text)' }} className="text-[13px] font-bold leading-tight text-center break-words w-full">{data.name}</h3>
-        <p style={{ color: 'var(--app-text-muted)' }} className="text-[11px] text-center leading-normal mt-1 break-words w-full">{data.surnames}</p>
+        <h3 
+          style={{ color: 'var(--app-text)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
+          className="text-[13px] font-bold leading-tight text-center break-words w-full"
+        >
+          {data.name}
+        </h3>
+        <p 
+          style={{ color: 'var(--app-text-muted)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
+          className="text-[11px] text-center leading-normal mt-1 break-words w-full"
+        >
+          {data.surnames}
+        </p>
       </div>
     </div>
   );

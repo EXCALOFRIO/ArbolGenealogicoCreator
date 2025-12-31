@@ -102,7 +102,7 @@ const SparkleIcon = () => (
 );
 
 export const ActionMenu: React.FC = () => {
-  const { focusId, people, getPerson, openAddModal, openEditModal, deletePerson, exportRelationships, importRelationships, setIsExporting } = useFamilyStore();
+  const { focusId, people, getPerson, openAddModal, openEditModal, deletePerson, importRelationships } = useFamilyStore();
   const isMobile = useIsMobile();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -238,10 +238,7 @@ export const ActionMenu: React.FC = () => {
 
   const manageActions: ActionItem[] = [
     { id: 'edit', label: 'Editar', type: 'edit', color: 'from-amber-500 to-orange-500', icon: <EditIcon /> },
-    { id: 'photo', label: 'Foto', type: 'export', color: 'from-pink-500 to-rose-600', icon: <CameraIcon /> },
     { id: 'delete', label: 'Eliminar', type: 'delete', color: 'from-red-500 to-red-600', icon: <TrashIcon /> },
-    { id: 'export', label: 'Exportar', type: 'export', color: 'from-emerald-500 to-green-600', icon: <DownloadIcon /> },
-    { id: 'import', label: 'Importar', type: 'import', color: 'from-sky-500 to-cyan-600', icon: <UploadIcon /> },
   ];
 
   const handleAction = (action: ActionItem) => {
@@ -251,26 +248,6 @@ export const ActionMenu: React.FC = () => {
       openEditModal(person);
     } else if (action.type === 'delete') {
       setShowDeleteConfirm(true);
-    } else if (action.id === 'photo') {
-      setIsExporting(true);
-    } else if (action.type === 'export') {
-      try {
-        const payload = exportRelationships();
-        const json = JSON.stringify(payload, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'family-relationships.json';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      } catch {
-        window.alert('No se pudo exportar el JSON');
-      }
-    } else if (action.type === 'import') {
-      fileInputRef.current?.click();
     }
     setIsExpanded(false);
   };

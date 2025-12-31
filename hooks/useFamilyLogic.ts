@@ -130,6 +130,17 @@ export const useFamilyLogic = () => {
           const sibDown = down === 0 ? 1 : down + 1;
           nodeCoords.set(bid, { up: sibUp, down: sibDown });
           rq.push({ id: bid, up: sibUp, down: sibDown });
+          
+          // También añadir las parejas del hermano (cuñados, tíos políticos, etc.)
+          const sibling = peopleById.get(bid);
+          if (sibling) {
+            (sibling.partners || []).forEach(spouseId => {
+              if (!nodeCoords.has(spouseId)) {
+                nodeCoords.set(spouseId, { up: sibUp, down: sibDown });
+                rq.push({ id: spouseId, up: sibUp, down: sibDown });
+              }
+            });
+          }
         }
       });
     }
@@ -162,13 +173,60 @@ export const useFamilyLogic = () => {
       return 'Pariente';
     };
 
-    // 4. MAPPING FINAL
+    // 4. MAPPING FINAL - Detectar cónyuges políticos
+    const getSpouseRelLabel = (p: Person, partnerId: string): string | null => {
+      const partner = peopleById.get(partnerId);
+      if (!partner) return null;
+      
+      const partnerCoords = nodeCoords.get(partnerId);
+      if (!partnerCoords) return null;
+      
+      const { up, down } = partnerCoords;
+      
+      // Cónyuge de hermano = Cuñado/Cuñada
+      if (up === 1 && down === 1) {
+        return p.gender === 'Male' ? 'Cuñado' : 'Cuñada';
+      }
+      // Cónyuge de tío = Tío político / Tía política
+      if (up === 2 && down === 1) {
+        return p.gender === 'Male' ? 'Tío político' : 'Tía política';
+      }
+      // Cónyuge de tío abuelo = Tío abuelo político
+      if (up === 3 && down === 1) {
+        return p.gender === 'Male' ? 'Tío ab. pol.' : 'Tía ab. pol.';
+      }
+      // Cónyuge de primo = Primo político
+      if (up === 2 && down === 2) {
+        return p.gender === 'Male' ? 'Primo pol.' : 'Prima pol.';
+      }
+      // Cónyuge de sobrino = Sobrino político
+      if (up === 1 && down === 2) {
+        return p.gender === 'Male' ? 'Sob. pol.' : 'Sob. pol.';
+      }
+      
+      return null;
+    };
+
     people.forEach(p => {
       const coords = nodeCoords.get(p.id);
       let rType = 'Pariente';
 
       if (coords) {
-        rType = getRelLabel(p, coords.up, coords.down);
+        // Primero verificar si es cónyuge de alguien (tío político, cuñado, etc.)
+        let isSpouseOf = false;
+        for (const partnerId of (p.partners || [])) {
+          const spouseLabel = getSpouseRelLabel(p, partnerId);
+          if (spouseLabel) {
+            rType = spouseLabel;
+            isSpouseOf = true;
+            break;
+          }
+        }
+        
+        // Si no es cónyuge político, usar la etiqueta normal
+        if (!isSpouseOf) {
+          rType = getRelLabel(p, coords.up, coords.down);
+        }
       } else {
         // Si no hay ruta directa, ver si es pareja de alguien con ruta
         for (const partnerId of p.partners) {

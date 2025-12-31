@@ -3,6 +3,9 @@
    Colores: Olive/Sage Green + Teal + Blue-Gray
    ============================================ */
 
+/* Importar temas visuales */
+@import './styles/rustic-theme.css';
+
 /* ============ CSS VARIABLES - LIGHT MODE (default) ============ */
 @layer base {
   :root {
