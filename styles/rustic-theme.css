@@ -207,13 +207,19 @@
   font-weight: 700 !important;
 }
 
-/* ============ LÍNEAS DE CONEXIÓN - RAMAS DEL ÁRBOL ============ */
+/* ============ LÍNEAS DE CONEXIÓN - RAMAS DEL ÁRBOL (Custom BranchEdge) ============ */
+/* Los estilos del edge personalizado están en el componente BranchEdge.tsx */
+/* Estos estilos son fallback y para el edge-path por defecto */
 .visual-theme-rustic .react-flow__edge-path {
   stroke: var(--rustic-branch) !important;
-  stroke-width: 3px !important;
+  stroke-width: 2.5px !important;
   stroke-linecap: round !important;
   stroke-linejoin: round !important;
-  filter: drop-shadow(1px 1px 1px rgba(255, 255, 255, 0.4)) !important;
+}
+
+/* Ocultar el edge-path por defecto cuando usamos custom edge */
+.visual-theme-rustic .branch-edge-group + .react-flow__edge-path {
+  display: none;
 }
 
 .visual-theme-rustic .react-flow__edge.selected .react-flow__edge-path {

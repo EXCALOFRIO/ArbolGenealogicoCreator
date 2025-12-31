@@ -4,6 +4,7 @@ import { toPng } from 'html-to-image';
 import { useFamilyLogic } from '../hooks/useFamilyLogic';
 import { PersonNode } from './PersonNode';
 import { CoupleNode } from './CoupleNode';
+import { BranchEdge } from './BranchEdge';
 import { useFamilyStore } from '../store/familyStore';
 
 const BackgroundNode = React.memo(({ data }: any) => {
@@ -24,6 +25,10 @@ const nodeTypes = {
   person: PersonNode,
   couple: CoupleNode,
   background: BackgroundNode,
+};
+
+const edgeTypes = {
+  branch: BranchEdge,
 };
 
 // Componente interno para manejar el centrado
@@ -62,7 +67,7 @@ const FlowContent: React.FC<{ nodes: Node[]; edges: Edge[]; focusId: string }> =
 
 export const FamilyTree: React.FC = () => {
   const familyNodes = useFamilyLogic();
-  const { focusId, viewRootId, theme, isExporting, setIsExporting } = useFamilyStore();
+  const { focusId, viewRootId, theme, visualTheme, isExporting, setIsExporting } = useFamilyStore();
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   // Detectar móvil para ajustar tamaños
@@ -126,6 +131,9 @@ export const FamilyTree: React.FC = () => {
   const { nodes, edges } = useMemo(() => {
     const flowNodes: Node[] = [];
     const flowEdges: Edge[] = [];
+
+    // Tipo de edge: rama orgánica para tema rústico, smoothstep para moderno
+    const edgeType = visualTheme === 'rustic' ? 'branch' : 'smoothstep';
 
     const familyById = new Map<string, any>();
     familyNodes.forEach(p => familyById.set(p.id, p));
@@ -311,7 +319,7 @@ export const FamilyTree: React.FC = () => {
                 source: sourceNode.id,
                 target: coupleId,
                 targetHandle: `top-${p1.id}`,
-                type: 'smoothstep',
+                type: edgeType,
               });
             }
             if (parentIds.includes(p2.id) || p2.parents?.some((pid: string) => parentIds.includes(pid))) {
@@ -320,7 +328,7 @@ export const FamilyTree: React.FC = () => {
                 source: sourceNode.id,
                 target: coupleId,
                 targetHandle: `top-${p2.id}`,
-                type: 'smoothstep',
+                type: edgeType,
               });
             }
           }
@@ -352,7 +360,7 @@ export const FamilyTree: React.FC = () => {
               id: `edge-${sourceNode.id}-to-${child.id}`,
               source: sourceNode.id,
               target: child.id,
-              type: 'smoothstep',
+              type: edgeType,
             });
           }
 
@@ -471,7 +479,7 @@ export const FamilyTree: React.FC = () => {
               source: coupleId,
               target: childNode.id,
               targetHandle,
-              type: 'smoothstep',
+              type: edgeType,
             });
           }
         });
@@ -645,7 +653,7 @@ export const FamilyTree: React.FC = () => {
               source: p1.id,
               target: childNode.id,
               targetHandle,
-              type: 'smoothstep',
+              type: edgeType,
             });
           }
         });
@@ -852,7 +860,7 @@ export const FamilyTree: React.FC = () => {
     }
 
     return { nodes: flowNodes, edges: flowEdges };
-  }, [familyNodes, viewRootId, isMobile, focusId]);
+  }, [familyNodes, viewRootId, isMobile, focusId, visualTheme]);
 
   return (
     <div style={{ background: 'var(--app-bg)' }} className="w-full h-screen relative touch-none">
@@ -875,10 +883,11 @@ export const FamilyTree: React.FC = () => {
         preventScrolling={true}
         fitViewOptions={{ padding: 0.6, duration: 400 }}
         connectionLineType={ConnectionLineType.SmoothStep}
+        edgeTypes={edgeTypes}
         defaultEdgeOptions={{
-          type: 'smoothstep',
+          type: visualTheme === 'rustic' ? 'branch' : 'smoothstep',
           pathOptions: { borderRadius: 20 },
-          style: { stroke: '#64748b', strokeWidth: 4 },
+          style: visualTheme === 'rustic' ? undefined : { stroke: '#64748b', strokeWidth: 4 },
         }}
         proOptions={{ hideAttribution: true }}
       >

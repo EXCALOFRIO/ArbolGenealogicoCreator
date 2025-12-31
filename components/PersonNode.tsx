@@ -4,6 +4,7 @@ import { RenderNode } from '../types';
 import { getGroupColor } from '../utils/colors';
 import { useFamilyStore } from '../store/familyStore';
 import { useIsMobile } from '../hooks/useIsMobile';
+// RusticTwigDivider ya no se usa aquí
 
 export const PersonNode = memo(({ data }: { data: RenderNode }) => {
   const setFocusId = useFamilyStore(state => state.setFocusId);
@@ -133,7 +134,7 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
           {formatText(data.name)}
         </h3>
         
-        {/* Línea divisoria */}
+        {/* Línea divisoria simple */}
         <div className="rustic-divider w-full h-[1px] my-1" />
         
         {/* Apellidos - cada uno en su línea */}

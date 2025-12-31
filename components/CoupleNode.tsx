@@ -4,6 +4,7 @@ import { RenderNode } from '../types';
 import { getGroupColor } from '../utils/colors';
 import { useFamilyStore } from '../store/familyStore';
 import { useIsMobile } from '../hooks/useIsMobile';
+// RusticTwigDivider ya no se usa aquí
 
 interface CoupleNodeData {
   person1: RenderNode;
@@ -94,7 +95,7 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
           {formatText(person.name)}
         </h3>
         
-        {/* Línea divisoria */}
+        {/* Línea divisoria simple */}
         <div className="rustic-divider w-full h-[1px] my-0.5" />
         
         {/* Apellidos - cada uno en su línea */}
