@@ -178,7 +178,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
           boxShadow: hasAnyFocus ? '0 0 20px rgba(104, 144, 156, 0.3)' : undefined
         }}
         className={`
-          relative flex w-[160px] h-[130px] items-center gap-0 rounded-xl p-1 border
+          relative flex w-[200px] h-[130px] items-center gap-0 rounded-xl p-1 border
           transition-all duration-300 ease-out
           ${hasAnyFocus ? 'ring-2' : 'hover:shadow-md'}
           backdrop-blur-xl
@@ -232,7 +232,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
         boxShadow: hasAnyFocus ? '0 0 25px rgba(104, 144, 156, 0.35)' : undefined
       }}
       className={`
-        relative flex w-[210px] h-auto items-center gap-0 rounded-[20px] p-1.5 border
+        relative flex w-[260px] h-auto items-center gap-0 rounded-[20px] p-1.5 border
         transition-all duration-300 ease-out
         ${hasAnyFocus ? 'ring-2' : 'hover:shadow-lg'}
         backdrop-blur-xl

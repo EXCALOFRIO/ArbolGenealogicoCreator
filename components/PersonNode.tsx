@@ -139,7 +139,7 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
       }}
       className={`
         relative flex flex-col items-center p-3 rounded-[20px] cursor-pointer 
-        transition-all duration-300 ease-out w-[120px] h-auto border
+        transition-all duration-300 ease-out w-[130px] h-auto border
         ${isFocus ? 'ring-2' : 'hover:shadow-lg'}
         backdrop-blur-xl
       `}

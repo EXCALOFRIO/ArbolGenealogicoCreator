@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@xyflow/react": "12.4.2",
+    "arbol-genealogico-creator": "file:",
     "framer-motion": "^12.23.26",
     "html-to-image": "^1.11.13",
     "react": "^19.2.3",

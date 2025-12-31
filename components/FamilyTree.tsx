@@ -45,7 +45,7 @@ const FlowContent: React.FC<{ nodes: Node[]; edges: Edge[]; focusId: string }> =
       });
 
       if (focusNode) {
-        const nodeWidth = focusNode.type === 'couple' ? 320 : 160;
+        const nodeWidth = focusNode.type === 'couple' ? 260 : 130;
         const nodeHeight = 140;
         const centerX = focusNode.position.x + nodeWidth / 2;
         const centerY = focusNode.position.y + nodeHeight / 2;
@@ -130,11 +130,16 @@ export const FamilyTree: React.FC = () => {
     const familyById = new Map<string, any>();
     familyNodes.forEach(p => familyById.set(p.id, p));
 
-    // Tamaños responsivos (ajustados para evitar solapamientos)
-    const COUPLE_WIDTH = isMobile ? 140 : 210;
-    const SINGLE_WIDTH = isMobile ? 70 : 100;
-    const HORIZONTAL_GAP = isMobile ? 40 : 100;
-    const VERTICAL_SPACING = isMobile ? 160 : 220;
+    // Tamaños responsivos (más compactos y con aire)
+    const COUPLE_WIDTH = isMobile ? 200 : 260;
+    const SINGLE_WIDTH = isMobile ? 100 : 130;
+    const SIBLING_GAP = isMobile ? 20 : 40;      // Espacio entre hermanos (más juntos)
+    const COUSIN_GAP = isMobile ? 60 : 120;      // Espacio entre primos (más separados)
+    const VERTICAL_SPACING = isMobile ? 200 : 280; // Más aire vertical
+
+    // Límites de generaciones para evitar solapamiento
+    const MAX_ANCESTOR_DEPTH = 2;    // Padres, abuelos
+    const MAX_DESCENDANT_DEPTH = 2;  // Hijos, nietos
 
     const focusPerson = familyById.get(focusId);
     if (!focusPerson) return { nodes: [], edges: [] };
@@ -164,8 +169,13 @@ export const FamilyTree: React.FC = () => {
         .sort((a, b) => (a.birthDate || '').localeCompare(b.birthDate || '') || a.id.localeCompare(b.id));
     };
 
-    // Calcular ancho de subárbol de descendientes
-    const calcDescendantsWidth = (personIds: string[], visitedCalc: Set<string>): number => {
+    // Calcular ancho de subárbol de descendientes (con límite de profundidad)
+    const calcDescendantsWidth = (personIds: string[], visitedCalc: Set<string>, depth: number = 0): number => {
+      // Limitar profundidad
+      if (depth >= MAX_DESCENDANT_DEPTH) {
+        return personIds.length === 2 ? COUPLE_WIDTH : SINGLE_WIDTH;
+      }
+
       const childrenSet = new Set<string>();
       personIds.forEach(pId => {
         const p = familyById.get(pId);
@@ -192,20 +202,23 @@ export const FamilyTree: React.FC = () => {
         if (partner) {
           processed.add(partner.id);
           const newVisited = new Set([...visitedCalc, child.id, partner.id]);
-          totalWidth += calcDescendantsWidth([child.id, partner.id], newVisited);
+          totalWidth += calcDescendantsWidth([child.id, partner.id], newVisited, depth + 1);
         } else {
           const newVisited = new Set([...visitedCalc, child.id]);
-          totalWidth += calcDescendantsWidth([child.id], newVisited);
+          totalWidth += calcDescendantsWidth([child.id], newVisited, depth + 1);
         }
       });
 
-      totalWidth += Math.max(0, processed.size - 1) * HORIZONTAL_GAP;
+      totalWidth += Math.max(0, processed.size - 1) * SIBLING_GAP;
       const baseWidth = personIds.length === 2 ? COUPLE_WIDTH : SINGLE_WIDTH;
       return Math.max(baseWidth, totalWidth);
     };
 
-    // Renderizar descendientes
-    const renderDescendants = (parentIds: string[], centerX: number, baseY: number) => {
+    // Renderizar descendientes (con límite de profundidad)
+    const renderDescendants = (parentIds: string[], centerX: number, baseY: number, depth: number = 0) => {
+      // Limitar profundidad
+      if (depth >= MAX_DESCENDANT_DEPTH) return;
+
       const childrenSet = new Set<string>();
       parentIds.forEach(pId => {
         const p = familyById.get(pId);
@@ -220,7 +233,7 @@ export const FamilyTree: React.FC = () => {
       if (children.length === 0) return;
 
       const childY = baseY + VERTICAL_SPACING;
-      const blocks: { ids: string[], width: number }[] = [];
+      const blocks: { ids: string[], width: number, partnerIsChild: boolean }[] = [];
       const processed = new Set<string>();
 
       children.forEach(child => {
@@ -228,19 +241,37 @@ export const FamilyTree: React.FC = () => {
         processed.add(child.id);
 
         const partnerId = child.partners?.[0];
-        const partner = partnerId && children.some(c => c.id === partnerId) ? familyById.get(partnerId) : null;
+        // Buscar pareja en todo familyById, no solo entre children
+        // Así se incluyen parejas de fuera de la familia (ej: marido de Julia)
+        const partner = partnerId && !visited.has(partnerId) ? familyById.get(partnerId) : null;
+        const partnerIsChild = partnerId && children.some(c => c.id === partnerId);
 
         if (partner) {
           processed.add(partner.id);
-          const width = calcDescendantsWidth([child.id, partner.id], new Set([...visited, child.id, partner.id]));
-          blocks.push({ ids: [child.id, partner.id], width });
+          // Si la pareja es también un hijo, calcular descendientes de ambos
+          // Si la pareja es de fuera, solo calcular descendientes del hijo (no de la familia del cónyuge)
+          const idsForWidth = partnerIsChild ? [child.id, partner.id] : [child.id];
+
+          // NOTA: Para medir el ancho, el set de 'visited' no debe incluir a los hijos que estamos midiendo
+          const estimationVisited = new Set(visited);
+          idsForWidth.forEach(id => estimationVisited.delete(id));
+          const descendantsWidth = calcDescendantsWidth(idsForWidth, estimationVisited);
+
+          // Ancho mínimo es COUPLE_WIDTH para parejas
+          const width = Math.max(COUPLE_WIDTH, descendantsWidth);
+          blocks.push({ ids: [child.id, partner.id], width, partnerIsChild: partnerIsChild });
         } else {
-          const width = calcDescendantsWidth([child.id], new Set([...visited, child.id]));
-          blocks.push({ ids: [child.id], width });
+          const estimationVisited = new Set(visited);
+          estimationVisited.delete(child.id);
+          const descendantsWidth = calcDescendantsWidth([child.id], estimationVisited);
+
+          // Ancho mínimo es SINGLE_WIDTH para solteros
+          const width = Math.max(SINGLE_WIDTH, descendantsWidth);
+          blocks.push({ ids: [child.id], width, partnerIsChild: false });
         }
       });
 
-      const totalWidth = blocks.reduce((sum, b) => sum + b.width, 0) + (blocks.length - 1) * HORIZONTAL_GAP;
+      const totalWidth = blocks.reduce((sum, b) => sum + b.width, 0) + (blocks.length - 1) * SIBLING_GAP;
       let currentX = centerX - totalWidth / 2;
 
       blocks.forEach(block => {
@@ -294,7 +325,7 @@ export const FamilyTree: React.FC = () => {
             }
           }
 
-          renderDescendants([p1.id, p2.id], blockCenterX, childY);
+          renderDescendants([p1.id, p2.id], blockCenterX, childY, depth + 1);
         } else {
           const child = familyById.get(block.ids[0]);
           visited.add(child.id);
@@ -325,15 +356,16 @@ export const FamilyTree: React.FC = () => {
             });
           }
 
-          renderDescendants([child.id], blockCenterX, childY);
+          renderDescendants([child.id], blockCenterX, childY, depth + 1);
         }
 
-        currentX += block.width + HORIZONTAL_GAP;
+        currentX += block.width + SIBLING_GAP;
       });
     };
 
     // Calcular ancho de rama ancestral (hacia arriba)
-    const calcAncestorBranchWidth = (personIds: string[], visitedCalc: Set<string>): number => {
+    // Calcular "holgura" necesaria a los lados de un bloque
+    const calcAncestorBranchClearance = (personIds: string[], visitedCalc: Set<string>, depth: number = 0): { left: number; right: number } => {
       const parentsSet = new Set<string>();
       personIds.forEach(pId => {
         const p = familyById.get(pId);
@@ -343,158 +375,97 @@ export const FamilyTree: React.FC = () => {
       });
 
       if (parentsSet.size === 0) {
-        return personIds.length === 2 ? COUPLE_WIDTH : SINGLE_WIDTH;
+        return { left: 0, right: 0 };
       }
 
       const parents = Array.from(parentsSet).map(id => familyById.get(id)).filter(Boolean);
-      let parent1 = parents[0];
-      let parent2 = parents.length > 1 ? parents[1] : null;
+      let p1 = parents[0];
+      let p2 = parents.length > 1 ? parents[1] : null;
+      if (p2 && p1.gender === 'Female' && p2.gender === 'Male') [p1, p2] = [p2, p1];
 
-      if (parent2 && parent1.gender === 'Female' && parent2.gender === 'Male') {
-        [parent1, parent2] = [parent2, parent1];
+      const newVisited = new Set([...visitedCalc, p1.id]);
+      if (p2) newVisited.add(p2.id);
+
+      // Si hay profundidad 0, estamos en el nivel de tíos/primos
+      let leftSibsWidth = 0;
+      let rightSibsWidth = 0;
+
+      if (depth === 0) {
+        const sibs1 = getSiblings(p1.id).filter(s => !visitedCalc.has(s.id) && !newVisited.has(s.id));
+        sibs1.forEach(s => {
+          const sibEstVisited = new Set(newVisited);
+          sibEstVisited.delete(s.id);
+          leftSibsWidth += Math.max(SINGLE_WIDTH, calcDescendantsWidth([s.id], sibEstVisited)) + COUSIN_GAP;
+        });
+
+        if (p2) {
+          const sibs2 = getSiblings(p2.id).filter(s => !visitedCalc.has(s.id) && !newVisited.has(s.id));
+          sibs2.forEach(s => {
+            const sibEstVisited = new Set(newVisited);
+            sibEstVisited.delete(s.id);
+            rightSibsWidth += Math.max(SINGLE_WIDTH, calcDescendantsWidth([s.id], sibEstVisited)) + COUSIN_GAP;
+          });
+        }
       }
 
-      const newVisited = new Set([...visitedCalc, parent1.id]);
-      if (parent2) newVisited.add(parent2.id);
+      const parentNodeWidth = p2 ? COUPLE_WIDTH : SINGLE_WIDTH;
+      const c1 = calcAncestorBranchClearance([p1.id], newVisited, depth + 1);
+      const c2 = p2 ? calcAncestorBranchClearance([p2.id], newVisited, depth + 1) : { left: 0, right: 0 };
 
-      const parentWidth = parent2 ? COUPLE_WIDTH : SINGLE_WIDTH;
-      const ancestorWidth = calcAncestorBranchWidth(parent2 ? [parent1.id, parent2.id] : [parent1.id], newVisited);
-
-      // Añadir hermanos de los padres
-      const siblings1 = getSiblings(parent1.id).filter(s => !visitedCalc.has(s.id) && !newVisited.has(s.id));
-      const siblingsWidth = siblings1.length * (SINGLE_WIDTH + HORIZONTAL_GAP);
-
-      return Math.max(parentWidth, ancestorWidth) + siblingsWidth;
+      // Holgura necesaria a la izquierda y derecha del centro de estos padres
+      return {
+        left: Math.max(leftSibsWidth, c1.left + c1.right + COUSIN_GAP),
+        right: Math.max(rightSibsWidth, c2.left + c2.right + COUSIN_GAP)
+      };
     };
 
-    // Renderizar ancestros centrando padres sobre hijos y colocando hermanos de cada padre en su lado
+    // Renderizar ancestros simplificado (solo padres directos, sin hermanos laterales para evitar solapamiento)
     const renderAncestors = (
-      childrenGroup: any[], // Grupo de hijos sobre los que centrar a los padres
+      childrenNodes: any[],
       groupCenterX: number,
-      baseY: number
+      baseY: number,
+      depth: number = 0
     ) => {
-      if (childrenGroup.length === 0) return;
+      if (depth >= MAX_ANCESTOR_DEPTH || childrenNodes.length === 0) return;
 
-      // Obtener todos los padres del grupo de hijos
+      const parentY = baseY - VERTICAL_SPACING;
       const parentsSet = new Set<string>();
-      childrenGroup.forEach(person => {
-        person.parents?.forEach((pId: string) => parentsSet.add(pId));
-      });
-
-      const parents = Array.from(parentsSet)
-        .map(id => familyById.get(id))
-        .filter(p => p && !visited.has(p.id));
+      childrenNodes.forEach(child => child.parents?.forEach((pId: string) => parentsSet.add(pId)));
+      const parents = Array.from(parentsSet).map(id => familyById.get(id)).filter(p => p && !visited.has(p.id));
 
       if (parents.length === 0) return;
 
-      const parentY = baseY - VERTICAL_SPACING;
+      let p1 = parents[0];
+      let p2 = parents.length > 1 ? parents[1] : null;
+      if (p2 && p1.gender === 'Female' && p2.gender === 'Male') [p1, p2] = [p2, p1];
 
-      // Ordenar: Hombre a la izquierda, Mujer a la derecha (en el CoupleNode)
-      let parent1 = parents[0]; // Izquierda
-      let parent2 = parents.length > 1 ? parents[1] : null; // Derecha
+      visited.add(p1.id);
+      if (p2) visited.add(p2.id);
 
-      if (parent2 && parent1.gender === 'Female' && parent2.gender === 'Male') {
-        [parent1, parent2] = [parent2, parent1];
-      }
+      // --- ESTRATEGIA: PADRES SIEMPRE CENTRADOS ---
+      const parentNodeWidth = p2 ? COUPLE_WIDTH : SINGLE_WIDTH;
+      // Los padres se colocan EXACTAMENTE sobre el centro del grupo de hijos que los originó
+      const parentsNodeX = groupCenterX - parentNodeWidth / 2;
+      const parentsCenterX = groupCenterX;
 
-      visited.add(parent1.id);
-      if (parent2) visited.add(parent2.id);
-
-      // Obtener hermanos de cada padre
-      const siblingsLeft = getSiblings(parent1.id).filter(s => !visited.has(s.id)); // Hermanos del padre izquierdo
-      const siblingsRight = parent2 ? getSiblings(parent2.id).filter(s => !visited.has(s.id)) : []; // Hermanos del padre derecho
-
-      // Calcular anchos de cada grupo de hermanos
-      const calcGroupWidth = (siblings: any[]) => {
-        return siblings.reduce((sum, s) => {
-          const sw = calcDescendantsWidth([s.id], new Set([...visited, s.id]));
-          return sum + sw + HORIZONTAL_GAP;
-        }, 0);
-      };
-
-      const siblingsLeftWidth = calcGroupWidth(siblingsLeft);
-      const siblingsRightWidth = calcGroupWidth(siblingsRight);
-      const parentNodeWidth = parent2 ? COUPLE_WIDTH : SINGLE_WIDTH;
-
-      // El grupo completo es: [hermanos izq] + [padres] + [hermanos der]
-      const totalWidth = siblingsLeftWidth + parentNodeWidth + siblingsRightWidth;
-
-      // Centrar el bloque completo sobre groupCenterX
-      const blockStartX = groupCenterX - totalWidth / 2;
-
-      // Posicionar hermanos de la izquierda (hermanos del padre que está en la izquierda del couple)
-      let currentX = blockStartX;
-      siblingsLeft.forEach(sib => {
-        visited.add(sib.id);
-
-        // Verificar si el hermano tiene pareja
-        const sibPartnerId = sib.partners?.[0];
-        const sibPartner = sibPartnerId ? familyById.get(sibPartnerId) : null;
-
-        if (sibPartner && !visited.has(sibPartner.id)) {
-          // Renderizar como CoupleNode
-          visited.add(sibPartner.id);
-          const sibWidth = calcDescendantsWidth([sib.id, sibPartner.id], new Set([...visited, sib.id, sibPartner.id]));
-          const sibCenterX = currentX + sibWidth / 2;
-
-          // Ordenar por género: hombre a la izquierda
-          const [p1, p2] = sib.gender === 'Male' ? [sib, sibPartner] : [sibPartner, sib];
-          const coupleId = `couple-${p1.id}-${p2.id}`;
-          const nodeX = sibCenterX - COUPLE_WIDTH / 2;
-
-          flowNodes.push({
-            id: coupleId,
-            type: 'couple',
-            position: { x: nodeX, y: parentY },
-            data: { person1: p1, person2: p2 },
-          });
-          nodePositions.set(coupleId, { x: nodeX, y: parentY });
-          renderDescendants([p1.id, p2.id], sibCenterX, parentY);
-
-          currentX += sibWidth + HORIZONTAL_GAP;
-        } else {
-          // Renderizar como PersonNode individual
-          const sibWidth = calcDescendantsWidth([sib.id], new Set([...visited, sib.id]));
-          const sibCenterX = currentX + sibWidth / 2;
-          const nodeX = sibCenterX - SINGLE_WIDTH / 2;
-
-          flowNodes.push({
-            id: sib.id,
-            type: 'person',
-            position: { x: nodeX, y: parentY },
-            data: sib,
-          });
-          nodePositions.set(sib.id, { x: nodeX, y: parentY });
-          renderDescendants([sib.id], sibCenterX, parentY);
-
-          currentX += sibWidth + HORIZONTAL_GAP;
-        }
-      });
-
-      // Posicionar pareja de padres en el centro
-      const parentCenterX = currentX + parentNodeWidth / 2;
-      if (parent2) {
-        const coupleId = `couple-${parent1.id}-${parent2.id}`;
-        const nodeX = currentX;
-
+      if (p2) {
+        const coupleId = `couple-${p1.id}-${p2.id}`;
         flowNodes.push({
           id: coupleId,
           type: 'couple',
-          position: { x: nodeX, y: parentY },
-          data: { person1: parent1, person2: parent2 },
+          position: { x: parentsNodeX, y: parentY },
+          data: { person1: p1, person2: p2 },
         });
-        nodePositions.set(coupleId, { x: nodeX, y: parentY });
+        nodePositions.set(coupleId, { x: parentsNodeX, y: parentY });
 
-        // Conectar padres a hijos
-        childrenGroup.forEach(child => {
-          const childCoupleNode = flowNodes.find(n =>
-            n.type === 'couple' &&
-            ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id)
+        // Conectar a todos los hijos
+        childrenNodes.forEach(child => {
+          const childNode = flowNodes.find(n =>
+            n.id === child.id ||
+            (n.type === 'couple' && ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id))
           );
-          const childNode = childCoupleNode || flowNodes.find(n => n.id === child.id);
-
           if (childNode) {
-            const targetHandle = childCoupleNode ? `top-${child.id}` : undefined;
+            const targetHandle = childNode.type === 'couple' ? `top-${child.id}` : undefined;
             flowEdges.push({
               id: `edge-${coupleId}-to-${child.id}`,
               source: coupleId,
@@ -505,30 +476,109 @@ export const FamilyTree: React.FC = () => {
           }
         });
 
-        currentX += parentNodeWidth;
+        // --- TÍOS (Hermanos de los padres) ---
+        let p1Siblings: any[] = [];
+        let p2Siblings: any[] = [];
+        if (depth === 0) {
+          p1Siblings = getSiblings(p1.id).filter(s => !visited.has(s.id));
+          p2Siblings = getSiblings(p2.id).filter(s => !visited.has(s.id));
+        }
+
+        // Calcular ancho del grupo de descendientes centrales para saber cuánto espacio dejar
+        // Necesitamos encontrar las posiciones reales de los nodos ya renderizados para calcular el ancho
+        let centralLeftMost = parentsCenterX - COUPLE_WIDTH / 2;
+        let centralRightMost = parentsCenterX + COUPLE_WIDTH / 2;
+        
+        // Buscar todos los nodos que son hijos de estos padres y que ya están renderizados
+        childrenNodes.forEach(child => {
+          const childPos = nodePositions.get(child.id);
+          if (childPos) {
+            centralLeftMost = Math.min(centralLeftMost, childPos.x);
+            centralRightMost = Math.max(centralRightMost, childPos.x + SINGLE_WIDTH);
+          }
+          // También buscar si es parte de un couple
+          flowNodes.forEach(n => {
+            if (n.type === 'couple') {
+              const data = n.data as any;
+              if (data.person1?.id === child.id || data.person2?.id === child.id) {
+                centralLeftMost = Math.min(centralLeftMost, n.position.x);
+                centralRightMost = Math.max(centralRightMost, n.position.x + COUPLE_WIDTH);
+              }
+            }
+          });
+        });
+        
+        // Añadir padding extra para primos
+        const centralHalfWidth = Math.max(
+          (centralRightMost - centralLeftMost) / 2 + COUSIN_GAP,
+          COUPLE_WIDTH
+        );
+
+        // Posicionar tíos de p1 (izquierda)
+        let p1GroupLeft = parentsNodeX;
+        let p1GroupRight = parentsNodeX + (p2 ? COUPLE_WIDTH / 2 : SINGLE_WIDTH);
+
+        let leftBoundaryX = parentsCenterX - centralHalfWidth - COUSIN_GAP;
+        p1Siblings.forEach(sib => {
+          const sibEstVisited = new Set(visited);
+          sibEstVisited.delete(sib.id);
+          const sibDescWidth = Math.max(SINGLE_WIDTH, calcDescendantsWidth([sib.id], sibEstVisited));
+          const sibWidth = Math.max(SINGLE_WIDTH, sibDescWidth);
+          const sibCenterX = leftBoundaryX - sibWidth / 2;
+          const nodeX = sibCenterX - SINGLE_WIDTH / 2;
+
+          visited.add(sib.id);
+          flowNodes.push({ id: sib.id, type: 'person', position: { x: nodeX, y: parentY }, data: sib });
+          nodePositions.set(sib.id, { x: nodeX, y: parentY });
+          renderDescendants([sib.id], sibCenterX, parentY, 1);
+
+          p1GroupLeft = Math.min(p1GroupLeft, nodeX);
+          leftBoundaryX -= sibWidth + COUSIN_GAP;
+        });
+        const p1GroupCenterX = (p1GroupLeft + p1GroupRight) / 2;
+
+        // Posicionar tíos de p2 (derecha)
+        let p2GroupLeft = parentsNodeX + (p2 ? COUPLE_WIDTH / 2 : 0);
+        let p2GroupRight = parentsNodeX + parentNodeWidth;
+
+        let rightBoundaryX = parentsCenterX + centralHalfWidth + COUSIN_GAP;
+        p2Siblings.forEach(sib => {
+          const sibEstVisited = new Set(visited);
+          sibEstVisited.delete(sib.id);
+          const sibDescWidth = Math.max(SINGLE_WIDTH, calcDescendantsWidth([sib.id], sibEstVisited));
+          const sibWidth = Math.max(SINGLE_WIDTH, sibDescWidth);
+          const sibCenterX = rightBoundaryX + sibWidth / 2;
+          const nodeX = sibCenterX - SINGLE_WIDTH / 2;
+
+          visited.add(sib.id);
+          flowNodes.push({ id: sib.id, type: 'person', position: { x: nodeX, y: parentY }, data: sib });
+          nodePositions.set(sib.id, { x: nodeX, y: parentY });
+          renderDescendants([sib.id], sibCenterX, parentY, 1);
+
+          p2GroupRight = Math.max(p2GroupRight, nodeX + SINGLE_WIDTH);
+          rightBoundaryX += sibWidth + COUSIN_GAP;
+        });
+        const p2GroupCenterX = (p2GroupLeft + p2GroupRight) / 2;
+
+        // --- RECURSIÓN: SUBIR A ABUELOS ---
+        renderAncestors([p1, ...p1Siblings], p1GroupCenterX, parentY, depth + 1);
+        renderAncestors([p2, ...p2Siblings], p2GroupCenterX, parentY, depth + 1);
 
       } else {
-        const nodeX = currentX;
-        flowNodes.push({
-          id: parent1.id,
-          type: 'person',
-          position: { x: nodeX, y: parentY },
-          data: parent1,
-        });
-        nodePositions.set(parent1.id, { x: nodeX, y: parentY });
+        // Padre soltero
+        flowNodes.push({ id: p1.id, type: 'person', position: { x: parentsNodeX, y: parentY }, data: p1 });
+        nodePositions.set(p1.id, { x: parentsNodeX, y: parentY });
 
-        childrenGroup.forEach(child => {
-          const childCoupleNode = flowNodes.find(n =>
-            n.type === 'couple' &&
-            ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id)
+        childrenNodes.forEach(child => {
+          const childNode = flowNodes.find(n =>
+            n.id === child.id ||
+            (n.type === 'couple' && ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id))
           );
-          const childNode = childCoupleNode || flowNodes.find(n => n.id === child.id);
-
           if (childNode) {
-            const targetHandle = childCoupleNode ? `top-${child.id}` : undefined;
+            const targetHandle = childNode.type === 'couple' ? `top-${child.id}` : undefined;
             flowEdges.push({
-              id: `edge-${parent1.id}-to-${child.id}`,
-              source: parent1.id,
+              id: `edge-${p1.id}-to-${child.id}`,
+              source: p1.id,
               target: childNode.id,
               targetHandle,
               type: 'smoothstep',
@@ -536,72 +586,7 @@ export const FamilyTree: React.FC = () => {
           }
         });
 
-        currentX += parentNodeWidth;
-      }
-
-      // Posicionar hermanos de la derecha (hermanos de la madre que está en la derecha del couple)
-      if (siblingsRight.length > 0) {
-        currentX += HORIZONTAL_GAP;
-      }
-      siblingsRight.forEach(sib => {
-        visited.add(sib.id);
-
-        // Verificar si el hermano tiene pareja
-        const sibPartnerId = sib.partners?.[0];
-        const sibPartner = sibPartnerId ? familyById.get(sibPartnerId) : null;
-
-        if (sibPartner && !visited.has(sibPartner.id)) {
-          // Renderizar como CoupleNode
-          visited.add(sibPartner.id);
-          const sibWidth = calcDescendantsWidth([sib.id, sibPartner.id], new Set([...visited, sib.id, sibPartner.id]));
-          const sibCenterX = currentX + sibWidth / 2;
-
-          // Ordenar por género: hombre a la izquierda
-          const [p1, p2] = sib.gender === 'Male' ? [sib, sibPartner] : [sibPartner, sib];
-          const coupleId = `couple-${p1.id}-${p2.id}`;
-          const nodeX = sibCenterX - COUPLE_WIDTH / 2;
-
-          flowNodes.push({
-            id: coupleId,
-            type: 'couple',
-            position: { x: nodeX, y: parentY },
-            data: { person1: p1, person2: p2 },
-          });
-          nodePositions.set(coupleId, { x: nodeX, y: parentY });
-          renderDescendants([p1.id, p2.id], sibCenterX, parentY);
-
-          currentX += sibWidth + HORIZONTAL_GAP;
-        } else {
-          // Renderizar como PersonNode individual
-          const sibWidth = calcDescendantsWidth([sib.id], new Set([...visited, sib.id]));
-          const sibCenterX = currentX + sibWidth / 2;
-          const nodeX = sibCenterX - SINGLE_WIDTH / 2;
-
-          flowNodes.push({
-            id: sib.id,
-            type: 'person',
-            position: { x: nodeX, y: parentY },
-            data: sib,
-          });
-          nodePositions.set(sib.id, { x: nodeX, y: parentY });
-          renderDescendants([sib.id], sibCenterX, parentY);
-
-          currentX += sibWidth + HORIZONTAL_GAP;
-        }
-      });
-
-      // Recursión: Subir a los abuelos
-      // Calcular el centro de la rama izquierda (parent1 + sus hermanos)
-      const leftBranchWidth = siblingsLeftWidth + (parent2 ? COUPLE_WIDTH / 2 : SINGLE_WIDTH);
-      const leftBranchCenterX = blockStartX + leftBranchWidth / 2;
-      renderAncestors([parent1, ...siblingsLeft], leftBranchCenterX, parentY);
-
-      // Si hay parent2, calcular el centro de la rama derecha (parent2 + sus hermanos)
-      if (parent2) {
-        const rightBranchStartX = blockStartX + siblingsLeftWidth + COUPLE_WIDTH / 2;
-        const rightBranchWidth = COUPLE_WIDTH / 2 + siblingsRightWidth;
-        const rightBranchCenterX = rightBranchStartX + rightBranchWidth / 2;
-        renderAncestors([parent2, ...siblingsRight], rightBranchCenterX, parentY);
+        renderAncestors([p1], parentsCenterX, parentY, depth + 1);
       }
     };
 
@@ -610,7 +595,7 @@ export const FamilyTree: React.FC = () => {
 
     if (focusPartner) {
       // El foco siempre va a la izquierda (p1), su pareja a la derecha (p2)
-      // Esto garantiza que la familia del foco está a la izquierda y la de su pareja a la derecha
+      // Solo mostramos la familia del foco, NO la familia extendida del cónyuge
       const [p1, p2] = [focusPerson, focusPartner];
       const focusCoupleId = `couple-${p1.id}-${p2.id}`;
 
@@ -626,20 +611,23 @@ export const FamilyTree: React.FC = () => {
       nodePositions.set(focusCoupleId, { x: -COUPLE_WIDTH / 2, y: centerY });
 
       // Calcular ancho de los descendientes del foco ANTES de renderizar
-      const focusDescendantsWidth = calcDescendantsWidth([p1.id, p2.id], new Set([p1.id, p2.id]));
+      // NOTA: Para la estimación inicial, no pasamos nada en visited para que cuente todo el subárbol
+      const focusDescendantsWidth = calcDescendantsWidth([p1.id, p2.id], new Set());
       const halfDescendantsWidth = Math.max(COUPLE_WIDTH / 2, focusDescendantsWidth / 2);
 
       // Descendientes (abajo, centrados)
       renderDescendants([p1.id, p2.id], 0, centerY);
 
-      // Calcular anchos de las ramas laterales
+      // Solo mostrar hermanos del foco, NO hermanos del cónyuge
       const focusSiblings = getSiblings(focusId).filter(s => !visited.has(s.id));
-      const partnerSiblings = getSiblings(focusPartnerId).filter(s => !visited.has(s.id));
 
       // IZQUIERDA: Hermanos del foco + ancestros del foco
       // Posicionar después del ancho de los descendientes del foco
-      const leftBaseX = -halfDescendantsWidth - HORIZONTAL_GAP;
+      const leftBaseX = -halfDescendantsWidth - SIBLING_GAP;
       let leftX = leftBaseX;
+      
+      // Rastrear el extremo izquierdo del grupo completo de hermanos
+      let groupLeftMost = -halfDescendantsWidth;
 
       focusSiblings.forEach(sib => {
         visited.add(sib.id);
@@ -651,7 +639,14 @@ export const FamilyTree: React.FC = () => {
         if (sibPartner && !visited.has(sibPartner.id)) {
           // Renderizar como CoupleNode
           visited.add(sibPartner.id);
-          const sibWidth = calcDescendantsWidth([sib.id, sibPartner.id], new Set([...visited, sib.id, sibPartner.id]));
+
+          const estimationVisited = new Set(visited);
+          estimationVisited.delete(sib.id);
+          estimationVisited.delete(sibPartner.id);
+          const descendantsWidth = calcDescendantsWidth([sib.id, sibPartner.id], estimationVisited);
+          // Usar el máximo entre el ancho del nodo y los descendientes para mantener espaciado uniforme
+          const sibWidth = Math.max(COUPLE_WIDTH, descendantsWidth);
+
           const sibCenterX = leftX - sibWidth / 2;
 
           // Ordenar por género: hombre a la izquierda
@@ -668,9 +663,15 @@ export const FamilyTree: React.FC = () => {
           nodePositions.set(coupleId, { x: nodeX, y: centerY });
           renderDescendants([sp1.id, sp2.id], sibCenterX, centerY);
 
-          leftX -= sibWidth + HORIZONTAL_GAP;
+          groupLeftMost = Math.min(groupLeftMost, sibCenterX - sibWidth / 2);
+          leftX -= sibWidth + SIBLING_GAP;
         } else {
-          const sibWidth = calcDescendantsWidth([sib.id], new Set([...visited, sib.id]));
+          const estimationVisited = new Set(visited);
+          estimationVisited.delete(sib.id);
+          const descendantsWidth = calcDescendantsWidth([sib.id], estimationVisited);
+          // Usar el máximo entre el ancho del nodo y los descendientes para mantener espaciado uniforme
+          const sibWidth = Math.max(SINGLE_WIDTH, descendantsWidth);
+
           const sibCenterX = leftX - sibWidth / 2;
           const nodeX = sibCenterX - SINGLE_WIDTH / 2;
 
@@ -683,68 +684,20 @@ export const FamilyTree: React.FC = () => {
           nodePositions.set(sib.id, { x: nodeX, y: centerY });
           renderDescendants([sib.id], sibCenterX, centerY);
 
-          leftX -= sibWidth + HORIZONTAL_GAP;
+          groupLeftMost = Math.min(groupLeftMost, sibCenterX - sibWidth / 2);
+          leftX -= sibWidth + SIBLING_GAP;
         }
       });
 
-      // Ancestros del foco (izquierda)
-      const leftAncestorX = focusSiblings.length > 0 ? (leftBaseX + leftX) / 2 : -COUPLE_WIDTH / 4;
-      renderAncestors([focusPerson, ...focusSiblings], leftAncestorX, centerY);
+      // El Foco (pareja central) está en X=0. Sus hermanos están a la izquierda.
+      // Calculamos el centro REAL de todo el grupo de hijos para que los padres (Marcelo/Julia) queden encima.
+      const focusGroupLeft = groupLeftMost;
+      const focusGroupRight = halfDescendantsWidth;
+      const focusGroupCenterX = (focusGroupLeft + focusGroupRight) / 2;
 
-      // DERECHA: Hermanos de la pareja + ancestros de la pareja
-      // Posicionar después del ancho de los descendientes del foco
-      const rightBaseX = halfDescendantsWidth + HORIZONTAL_GAP;
-      let rightX = rightBaseX;
+      renderAncestors([focusPerson, ...focusSiblings], focusGroupCenterX, centerY);
 
-      partnerSiblings.forEach(sib => {
-        visited.add(sib.id);
-
-        // Verificar si el hermano tiene pareja
-        const sibPartnerId = sib.partners?.[0];
-        const sibPartner = sibPartnerId ? familyById.get(sibPartnerId) : null;
-
-        if (sibPartner && !visited.has(sibPartner.id)) {
-          // Renderizar como CoupleNode
-          visited.add(sibPartner.id);
-          const sibWidth = calcDescendantsWidth([sib.id, sibPartner.id], new Set([...visited, sib.id, sibPartner.id]));
-          const sibCenterX = rightX + sibWidth / 2;
-
-          // Ordenar por género: hombre a la izquierda
-          const [sp1, sp2] = sib.gender === 'Male' ? [sib, sibPartner] : [sibPartner, sib];
-          const coupleId = `couple-${sp1.id}-${sp2.id}`;
-          const nodeX = sibCenterX - COUPLE_WIDTH / 2;
-
-          flowNodes.push({
-            id: coupleId,
-            type: 'couple',
-            position: { x: nodeX, y: centerY },
-            data: { person1: sp1, person2: sp2 },
-          });
-          nodePositions.set(coupleId, { x: nodeX, y: centerY });
-          renderDescendants([sp1.id, sp2.id], sibCenterX, centerY);
-
-          rightX += sibWidth + HORIZONTAL_GAP;
-        } else {
-          const sibWidth = calcDescendantsWidth([sib.id], new Set([...visited, sib.id]));
-          const sibCenterX = rightX + sibWidth / 2;
-          const nodeX = sibCenterX - SINGLE_WIDTH / 2;
-
-          flowNodes.push({
-            id: sib.id,
-            type: 'person',
-            position: { x: nodeX, y: centerY },
-            data: sib,
-          });
-          nodePositions.set(sib.id, { x: nodeX, y: centerY });
-          renderDescendants([sib.id], sibCenterX, centerY);
-
-          rightX += sibWidth + HORIZONTAL_GAP;
-        }
-      });
-
-      // Ancestros de la pareja (derecha)
-      const rightAncestorX = partnerSiblings.length > 0 ? (rightBaseX + rightX) / 2 : COUPLE_WIDTH / 4;
-      renderAncestors([focusPartner, ...partnerSiblings], rightAncestorX, centerY);
+      // NO renderizar hermanos ni ancestros del cónyuge - solo mostramos al cónyuge
 
     } else {
       // Foco sin pareja
@@ -760,27 +713,78 @@ export const FamilyTree: React.FC = () => {
       renderDescendants([focusId], 0, centerY);
 
       const siblings = getSiblings(focusId).filter(s => !visited.has(s.id));
-      let leftX = -SINGLE_WIDTH / 2 - HORIZONTAL_GAP;
+      
+      // Calcular ancho de descendientes del foco para saber el extremo derecho
+      const focusDescWidth = calcDescendantsWidth([focusId], new Set());
+      const focusHalfWidth = Math.max(SINGLE_WIDTH / 2, focusDescWidth / 2);
+      
+      let leftX = -focusHalfWidth - SIBLING_GAP;
+      let groupLeftMost = -focusHalfWidth;
 
       siblings.forEach(sib => {
-        const sibWidth = calcDescendantsWidth([sib.id], new Set([...visited, sib.id]));
-        const sibCenterX = leftX - sibWidth / 2;
-        const nodeX = sibCenterX - SINGLE_WIDTH / 2;
-
         visited.add(sib.id);
-        flowNodes.push({
-          id: sib.id,
-          type: 'person',
-          position: { x: nodeX, y: centerY },
-          data: sib,
-        });
-        nodePositions.set(sib.id, { x: nodeX, y: centerY });
 
-        renderDescendants([sib.id], sibCenterX, centerY);
-        leftX -= sibWidth + HORIZONTAL_GAP;
+        // Verificar si el hermano tiene pareja
+        const sibPartnerId = sib.partners?.[0];
+        const sibPartner = sibPartnerId ? familyById.get(sibPartnerId) : null;
+
+        if (sibPartner && !visited.has(sibPartner.id)) {
+          // Renderizar como CoupleNode
+          visited.add(sibPartner.id);
+
+          const estimationVisited = new Set(visited);
+          estimationVisited.delete(sib.id);
+          estimationVisited.delete(sibPartner.id);
+          const descendantsWidth = calcDescendantsWidth([sib.id, sibPartner.id], estimationVisited);
+          const sibWidth = Math.max(COUPLE_WIDTH, descendantsWidth);
+
+          const sibCenterX = leftX - sibWidth / 2;
+
+          // Ordenar por género: hombre a la izquierda
+          const [sp1, sp2] = sib.gender === 'Male' ? [sib, sibPartner] : [sibPartner, sib];
+          const coupleId = `couple-${sp1.id}-${sp2.id}`;
+          const nodeX = sibCenterX - COUPLE_WIDTH / 2;
+
+          flowNodes.push({
+            id: coupleId,
+            type: 'couple',
+            position: { x: nodeX, y: centerY },
+            data: { person1: sp1, person2: sp2 },
+          });
+          nodePositions.set(coupleId, { x: nodeX, y: centerY });
+          renderDescendants([sp1.id, sp2.id], sibCenterX, centerY);
+
+          groupLeftMost = Math.min(groupLeftMost, sibCenterX - sibWidth / 2);
+          leftX -= sibWidth + SIBLING_GAP;
+        } else {
+          const estimationVisited = new Set(visited);
+          estimationVisited.delete(sib.id);
+          const descendantsWidth = calcDescendantsWidth([sib.id], estimationVisited);
+          const sibWidth = Math.max(SINGLE_WIDTH, descendantsWidth);
+
+          const sibCenterX = leftX - sibWidth / 2;
+          const nodeX = sibCenterX - SINGLE_WIDTH / 2;
+
+          flowNodes.push({
+            id: sib.id,
+            type: 'person',
+            position: { x: nodeX, y: centerY },
+            data: sib,
+          });
+          nodePositions.set(sib.id, { x: nodeX, y: centerY });
+
+          renderDescendants([sib.id], sibCenterX, centerY);
+          groupLeftMost = Math.min(groupLeftMost, sibCenterX - sibWidth / 2);
+          leftX -= sibWidth + SIBLING_GAP;
+        }
       });
 
-      renderAncestors([focusPerson, ...siblings], 0, centerY);
+      // Calculamos el centro REAL del grupo
+      const focusGroupLeft = groupLeftMost;
+      const focusGroupRight = focusHalfWidth;
+      const focusGroupCenterX = (focusGroupLeft + focusGroupRight) / 2;
+
+      renderAncestors([focusPerson, ...siblings], focusGroupCenterX, centerY);
     }
 
     return { nodes: flowNodes, edges: flowEdges };
