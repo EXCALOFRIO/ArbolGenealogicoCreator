@@ -96,20 +96,62 @@ export const FamilyTree: React.FC = () => {
         const element = document.querySelector('.react-flow') as HTMLElement;
         if (element) {
           try {
+            // Para tema rústico: crear un div temporal con la imagen de fondo
+            let bgDiv: HTMLDivElement | null = null;
+            if (visualTheme === 'rustic') {
+              bgDiv = document.createElement('div');
+              bgDiv.style.cssText = `
+                position: absolute;
+                inset: 0;
+                background-image: url('/utils/themeImageBackground/background1.png');
+                background-repeat: no-repeat;
+                background-position: center center;
+                background-size: cover;
+                filter: blur(1.5px);
+                opacity: 0.55;
+                z-index: -1;
+              `;
+              element.insertBefore(bgDiv, element.firstChild);
+              
+              // Añadir overlay de pergamino
+              const overlayDiv = document.createElement('div');
+              overlayDiv.style.cssText = `
+                position: absolute;
+                inset: 0;
+                background: radial-gradient(
+                  ellipse at center,
+                  rgba(244, 228, 188, 0.25) 0%,
+                  rgba(244, 228, 188, 0.35) 40%,
+                  rgba(232, 212, 168, 0.45) 100%
+                );
+                z-index: -1;
+              `;
+              overlayDiv.className = 'temp-overlay-export';
+              element.insertBefore(overlayDiv, element.firstChild);
+            }
+
             // 3. Generar la imagen con alta calidad
             const dataUrl = await toPng(element, {
-              backgroundColor: theme === 'dark' ? '#0e100a' : '#f4f5ef',
+              backgroundColor: visualTheme === 'rustic' 
+                ? '#b8a67a' // Color base del pergamino
+                : (theme === 'dark' ? '#0e100a' : '#f4f5ef'),
               pixelRatio: 4, // Ultra alta calidad
               filter: (node) => {
                 // Ocultar elementos innecesarios en la foto
                 const exclusionClasses = [
                   'react-flow__controls',
                   'react-flow__attribution',
-                  'react-flow__minimize'
+                  'react-flow__minimap'
                 ];
                 return !exclusionClasses.some(cls => node.classList?.contains(cls));
               }
             });
+
+            // Limpiar elementos temporales
+            if (bgDiv) {
+              bgDiv.remove();
+              element.querySelector('.temp-overlay-export')?.remove();
+            }
 
             // 4. Descargar
             const link = document.createElement('a');
@@ -128,7 +170,7 @@ export const FamilyTree: React.FC = () => {
 
       performExport();
     }
-  }, [isExporting, fitView, theme, setIsExporting]);
+  }, [isExporting, fitView, theme, visualTheme, setIsExporting]);
 
   const { nodes, edges } = useMemo(() => {
     const flowNodes: Node[] = [];

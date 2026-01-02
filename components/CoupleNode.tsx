@@ -159,16 +159,16 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
         </span>
         <div className="flex flex-col items-center mt-0.5 w-full px-1">
           <h3 
-            style={{ color: 'var(--app-text)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
+            style={{ color: 'var(--app-text)' }} 
             className="text-[10px] font-semibold leading-tight text-center wrap-break-word w-full"
           >
-            {person.name}
+            {formatText(person.name)}
           </h3>
           <p 
-            style={{ color: 'var(--app-text-muted)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
+            style={{ color: 'var(--app-text-muted)' }} 
             className="text-[8px] text-center leading-tight mt-0.5 wrap-break-word w-full"
           >
-            {person.surnames}
+            {formatText(person.surnames)}
           </p>
         </div>
       </div>

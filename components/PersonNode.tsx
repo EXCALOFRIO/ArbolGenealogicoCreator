@@ -209,16 +209,16 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
         </span>
         <div className="flex flex-col items-center mt-0.5 w-full px-1">
           <h3 
-            style={{ color: 'var(--app-text)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
+            style={{ color: 'var(--app-text)' }} 
             className="text-[11px] font-semibold leading-tight text-center wrap-break-word w-full"
           >
-            {data.name}
+            {formatText(data.name)}
           </h3>
           <p 
-            style={{ color: 'var(--app-text-muted)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
+            style={{ color: 'var(--app-text-muted)' }} 
             className="text-[9px] text-center leading-tight mt-0.5 wrap-break-word w-full"
           >
-            {data.surnames}
+            {formatText(data.surnames)}
           </p>
         </div>
       </div>
@@ -279,16 +279,16 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
       </span>
       <div className="flex flex-col items-center mt-1 w-full px-1">
         <h3 
-          style={{ color: 'var(--app-text)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
+          style={{ color: 'var(--app-text)' }} 
           className="text-[13px] font-bold leading-tight text-center wrap-break-word w-full"
         >
-          {data.name}
+          {formatText(data.name)}
         </h3>
         <p 
-          style={{ color: 'var(--app-text-muted)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
+          style={{ color: 'var(--app-text-muted)' }} 
           className="text-[11px] text-center leading-normal mt-1 wrap-break-word w-full"
         >
-          {data.surnames}
+          {formatText(data.surnames)}
         </p>
       </div>
     </div>
