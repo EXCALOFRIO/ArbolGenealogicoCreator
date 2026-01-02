@@ -28,6 +28,10 @@ export const BranchLEdge: React.FC<EdgeProps> = ({
   // allDrops contiene las X de todos los hermanos y sus targetY
   const allDrops = (data?.allDrops as Array<{x: number, y: number}>) ?? [{ x: targetX, y: targetY }];
   
+  // parentCenterX: centro real del padre (calculado en FamilyTree)
+  // Si no viene, usamos el punto medio de los drops como fallback
+  const parentCenterX = (data?.parentCenterX as number) ?? null;
+  
   // isFirst indica si este edge es el que dibuja todo el sistema
   const isFirst = (data?.isFirst as boolean) ?? true;
   
@@ -40,16 +44,21 @@ export const BranchLEdge: React.FC<EdgeProps> = ({
   const sortedDrops = [...allDrops].sort((a, b) => a.x - b.x);
   const minX = sortedDrops[0].x;
   const maxX = sortedDrops[sortedDrops.length - 1].x;
+  
+  // El tronco baja desde el centro del padre
+  // Si tenemos parentCenterX explícito, lo usamos
+  // Si no, usamos sourceX de ReactFlow
+  const trunkX = parentCenterX ?? sourceX;
 
   // Construir el path completo:
   // 1. Tronco: baja desde sourceY hasta barY
-  // 2. Barra: va de minX a maxX (pasando por sourceX)
+  // 2. Barra: va de minX a maxX (pasando por trunkX)
   // 3. Drops: sube/baja a cada hijo
   
   let pathD = '';
   
-  // Empezamos en el centro (sourceX), bajamos al bar
-  pathD += `M ${sourceX} ${sourceY} L ${sourceX} ${barY}`;
+  // Empezamos en el centro del padre (trunkX), bajamos al bar
+  pathD += `M ${trunkX} ${sourceY} L ${trunkX} ${barY}`;
   
   // Vamos hacia la izquierda hasta minX
   pathD += ` L ${minX} ${barY}`;

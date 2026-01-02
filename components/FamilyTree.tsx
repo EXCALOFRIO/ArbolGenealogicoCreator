@@ -223,6 +223,9 @@ export const FamilyTree: React.FC = () => {
       const parentBottomY = getSourceBottomY(sourceNodeId);
       const barY = (parentBottomY + childTopY) / 2;
 
+      // Calcular el centro exacto del nodo padre (para el tronco)
+      const parentCenterX = getSourceCenterX(sourceNodeId);
+
       // Calcular todas las posiciones de los drops
       const allDrops = connections.map(c => {
         const x = getTargetHandleX(c.targetNodeId, c.personId, c.targetHandle);
@@ -241,6 +244,7 @@ export const FamilyTree: React.FC = () => {
           data: { 
             barY, 
             allDrops,
+            parentCenterX,
             isFirst: index === 0 
           },
         });
@@ -288,25 +292,38 @@ export const FamilyTree: React.FC = () => {
       const children = Array.from(childrenSet).map(id => familyById.get(id)).filter(Boolean);
       const processed = new Set<string>();
       let totalWidth = 0;
+      let blockCount = 0;
 
       children.forEach(child => {
         if (processed.has(child.id)) return;
         processed.add(child.id);
+        blockCount++;
 
         const partnerId = child.partners?.[0];
-        const partner = partnerId && children.some(c => c.id === partnerId) ? familyById.get(partnerId) : null;
+        // Considerar pareja si es otro hijo O si existe en familyById y no está visitada
+        // Esto asegura que las parejas "externas" también se consideren para el ancho
+        const partnerIsChild = partnerId && children.some(c => c.id === partnerId);
+        const partner = partnerId && !visitedCalc.has(partnerId) ? familyById.get(partnerId) : null;
 
         if (partner) {
-          processed.add(partner.id);
+          if (partnerIsChild) {
+            processed.add(partner.id);
+            // No incrementar blockCount porque esta pareja ya es un hijo procesado
+          }
           const newVisited = new Set([...visitedCalc, child.id, partner.id]);
-          totalWidth += calcDescendantsWidth([child.id, partner.id], newVisited, depth + 1);
+          // El hijo con pareja ocupa al menos COUPLE_WIDTH
+          const childWidth = Math.max(COUPLE_WIDTH, calcDescendantsWidth([child.id, partner.id], newVisited, depth + 1));
+          totalWidth += childWidth;
         } else {
           const newVisited = new Set([...visitedCalc, child.id]);
-          totalWidth += calcDescendantsWidth([child.id], newVisited, depth + 1);
+          // Hijo soltero ocupa al menos SINGLE_WIDTH
+          const childWidth = Math.max(SINGLE_WIDTH, calcDescendantsWidth([child.id], newVisited, depth + 1));
+          totalWidth += childWidth;
         }
       });
 
-      totalWidth += Math.max(0, processed.size - 1) * SIBLING_GAP;
+      // Usar blockCount para el espaciado (no processed.size que puede incluir parejas duplicadas)
+      totalWidth += Math.max(0, blockCount - 1) * SIBLING_GAP;
       const baseWidth = personIds.length === 2 ? COUPLE_WIDTH : SINGLE_WIDTH;
       return Math.max(baseWidth, totalWidth);
     };
@@ -356,8 +373,8 @@ export const FamilyTree: React.FC = () => {
         if (partner) {
           processed.add(partner.id);
           // Si la pareja es también un hijo, calcular descendientes de ambos
-          // Si la pareja es de fuera, solo calcular descendientes del hijo (no de la familia del cónyuge)
-          const idsForWidth = partnerIsChild ? [child.id, partner.id] : [child.id];
+          // Si la pareja es de fuera, también incluir ambos IDs porque pueden tener hijos juntos
+          const idsForWidth = [child.id, partner.id];
 
           // NOTA: Para medir el ancho, el set de 'visited' no debe incluir a los hijos que estamos midiendo
           const estimationVisited = new Set(visited);
@@ -366,7 +383,7 @@ export const FamilyTree: React.FC = () => {
 
           // Ancho mínimo es COUPLE_WIDTH para parejas
           const width = Math.max(COUPLE_WIDTH, descendantsWidth);
-          blocks.push({ ids: [child.id, partner.id], width, partnerIsChild: partnerIsChild });
+          blocks.push({ ids: [child.id, partner.id], width, partnerIsChild: partnerIsChild ?? false });
         } else {
           const estimationVisited = new Set(visited);
           estimationVisited.delete(child.id);
@@ -591,23 +608,15 @@ export const FamilyTree: React.FC = () => {
         let centralLeftMost = parentsCenterX - COUPLE_WIDTH / 2;
         let centralRightMost = parentsCenterX + COUPLE_WIDTH / 2;
         
-        // Buscar todos los nodos que son hijos de estos padres y que ya están renderizados
-        childrenNodes.forEach(child => {
-          const childPos = nodePositions.get(child.id);
-          if (childPos) {
-            centralLeftMost = Math.min(centralLeftMost, childPos.x);
-            centralRightMost = Math.max(centralRightMost, childPos.x + SINGLE_WIDTH);
+        // Buscar TODOS los nodos ya renderizados para encontrar los extremos
+        // Esto incluye hijos, nietos y cualquier descendiente ya posicionado
+        flowNodes.forEach(n => {
+          const pos = nodePositions.get(n.id);
+          if (pos) {
+            const width = n.type === 'couple' ? COUPLE_WIDTH : SINGLE_WIDTH;
+            centralLeftMost = Math.min(centralLeftMost, pos.x);
+            centralRightMost = Math.max(centralRightMost, pos.x + width);
           }
-          // También buscar si es parte de un couple
-          flowNodes.forEach(n => {
-            if (n.type === 'couple') {
-              const data = n.data as any;
-              if (data.person1?.id === child.id || data.person2?.id === child.id) {
-                centralLeftMost = Math.min(centralLeftMost, n.position.x);
-                centralRightMost = Math.max(centralRightMost, n.position.x + COUPLE_WIDTH);
-              }
-            }
-          });
         });
         
         // Añadir padding extra para primos
