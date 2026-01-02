@@ -208,9 +208,9 @@ export const FamilyTree: React.FC = () => {
     };
 
     /**
-     * Crea edges en forma de L invertida para conectar padre con hijos.
-     * Cada conexión es un path continuo: baja, gira horizontal, baja al hijo.
-     * Así los codos se ven perfectos.
+     * Crea UN SOLO edge que dibuja todo el sistema de ramas:
+     * tronco + barra + todos los drops a los hijos.
+     * Así los codos se ven perfectos sin superposiciones.
      */
     const addRusticBranchGroup = (
       sourceNodeId: string,
@@ -223,15 +223,26 @@ export const FamilyTree: React.FC = () => {
       const parentBottomY = getSourceBottomY(sourceNodeId);
       const barY = (parentBottomY + childTopY) / 2;
 
-      // Crear un edge branchL por cada hijo
-      connections.forEach(c => {
+      // Calcular todas las posiciones de los drops
+      const allDrops = connections.map(c => {
+        const x = getTargetHandleX(c.targetNodeId, c.personId, c.targetHandle);
+        const y = getTargetTopY(c.targetNodeId);
+        return { x, y };
+      });
+
+      // Crear edges: el primero dibuja todo, los demás son invisibles (para mantener la conexión lógica)
+      connections.forEach((c, index) => {
         flowEdges.push({
           id: `edge-branchL-${groupKey}-${c.personId}`,
           source: sourceNodeId,
           target: c.targetNodeId,
           targetHandle: c.targetHandle,
           type: 'branchL',
-          data: { barY },
+          data: { 
+            barY, 
+            allDrops,
+            isFirst: index === 0 
+          },
         });
       });
     };
