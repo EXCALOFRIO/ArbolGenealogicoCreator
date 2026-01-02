@@ -95,8 +95,10 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
           {formatText(person.name)}
         </h3>
         
-        {/* Línea divisoria simple */}
-        <div className="rustic-divider w-full h-[1px] my-0.5" />
+        {/* Línea divisoria simple y fina */}
+        <div className="w-full my-0.5">
+          <div className="w-full h-[0.5px]" style={{ backgroundColor: 'var(--rustic-ink, #2c1810)' }} />
+        </div>
         
         {/* Apellidos - cada uno en su línea */}
         <div className="flex flex-col items-center">

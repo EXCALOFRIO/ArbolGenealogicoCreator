@@ -5,6 +5,7 @@ import { useFamilyLogic } from '../hooks/useFamilyLogic';
 import { PersonNode } from './PersonNode';
 import { CoupleNode } from './CoupleNode';
 import { BranchEdge } from './BranchEdge';
+import { BranchLEdge } from './BranchLEdge';
 import { useFamilyStore } from '../store/familyStore';
 
 const BackgroundNode = React.memo(({ data }: any) => {
@@ -29,6 +30,7 @@ const nodeTypes = {
 
 const edgeTypes = {
   branch: BranchEdge,
+  branchL: BranchLEdge,
 };
 
 // Componente interno para manejar el centrado
@@ -132,8 +134,9 @@ export const FamilyTree: React.FC = () => {
     const flowNodes: Node[] = [];
     const flowEdges: Edge[] = [];
 
-    // Tipo de edge: rama orgánica para tema rústico, smoothstep para moderno
-    const edgeType = visualTheme === 'rustic' ? 'branch' : 'smoothstep';
+    const isRusticVisual = visualTheme === 'rustic';
+    // En rústico dibujamos ramas con edgeTypes propios (barra horizontal compartida)
+    const edgeType = isRusticVisual ? 'branchDrop' : 'smoothstep';
 
     const familyById = new Map<string, any>();
     familyNodes.forEach(p => familyById.set(p.id, p));
@@ -157,6 +160,81 @@ export const FamilyTree: React.FC = () => {
 
     const visited = new Set<string>();
     const nodePositions = new Map<string, { x: number; y: number }>();
+
+    const getNodeById = (nodeId: string) => flowNodes.find(n => n.id === nodeId);
+
+    const getNodeWidth = (node: Node | undefined) => {
+      if (!node) return SINGLE_WIDTH;
+      return node.type === 'couple' ? COUPLE_WIDTH : SINGLE_WIDTH;
+    };
+
+    const getTargetHandleX = (targetNodeId: string, personId: string, targetHandle?: string) => {
+      const node = getNodeById(targetNodeId);
+      const pos = nodePositions.get(targetNodeId) || node?.position;
+      if (!node || !pos) return 0;
+
+      const width = getNodeWidth(node);
+
+      if (node.type === 'couple' && targetHandle?.startsWith('top-')) {
+        const data: any = node.data;
+        const isLeft = data?.person1?.id === personId;
+        const isRight = data?.person2?.id === personId;
+        const ratio = isLeft ? 0.25 : isRight ? 0.75 : 0.5;
+        return pos.x + width * ratio;
+      }
+
+      // PersonNode: handle top ocupa todo el ancho; el centro funciona bien
+      return pos.x + width / 2;
+    };
+
+    const getTargetTopY = (targetNodeId: string) => {
+      const pos = nodePositions.get(targetNodeId);
+      return pos ? pos.y : 0;
+    };
+
+    const getSourceBottomY = (sourceNodeId: string) => {
+      const pos = nodePositions.get(sourceNodeId);
+      // En este árbol usamos una altura visual estable (~140) para colocar la barra.
+      const NODE_HEIGHT = 140;
+      return pos ? pos.y + NODE_HEIGHT : 0;
+    };
+
+    const getSourceCenterX = (sourceNodeId: string) => {
+      const node = getNodeById(sourceNodeId);
+      const pos = nodePositions.get(sourceNodeId) || node?.position;
+      if (!node || !pos) return 0;
+      const width = getNodeWidth(node);
+      return pos.x + width / 2;
+    };
+
+    /**
+     * Crea edges en forma de L invertida para conectar padre con hijos.
+     * Cada conexión es un path continuo: baja, gira horizontal, baja al hijo.
+     * Así los codos se ven perfectos.
+     */
+    const addRusticBranchGroup = (
+      sourceNodeId: string,
+      groupKey: string,
+      connections: Array<{ personId: string; targetNodeId: string; targetHandle?: string }>
+    ) => {
+      if (connections.length === 0) return;
+
+      const childTopY = Math.min(...connections.map(c => getTargetTopY(c.targetNodeId)));
+      const parentBottomY = getSourceBottomY(sourceNodeId);
+      const barY = (parentBottomY + childTopY) / 2;
+
+      // Crear un edge branchL por cada hijo
+      connections.forEach(c => {
+        flowEdges.push({
+          id: `edge-branchL-${groupKey}-${c.personId}`,
+          source: sourceNodeId,
+          target: c.targetNodeId,
+          targetHandle: c.targetHandle,
+          type: 'branchL',
+          data: { barY },
+        });
+      });
+    };
 
     // ===== FUNCIONES AUXILIARES =====
 
@@ -240,6 +318,16 @@ export const FamilyTree: React.FC = () => {
 
       if (children.length === 0) return;
 
+      // Resolver nodo fuente 1 vez (para toda la camada de hermanos)
+      const parentCoupleNode = flowNodes.find(n =>
+        n.type === 'couple' && parentIds.some(pId =>
+          (n.data as any).person1?.id === pId || (n.data as any).person2?.id === pId
+        )
+      );
+      const parentSingleNode = flowNodes.find(n => parentIds.includes(n.id) && n.type === 'person');
+      const sourceNode = parentCoupleNode || parentSingleNode;
+      const pendingConnections: Array<{ personId: string; targetNodeId: string; targetHandle?: string }> = [];
+
       const childY = baseY + VERTICAL_SPACING;
       const blocks: { ids: string[], width: number, partnerIsChild: boolean }[] = [];
       const processed = new Set<string>();
@@ -303,33 +391,12 @@ export const FamilyTree: React.FC = () => {
           });
           nodePositions.set(coupleId, { x: nodeX, y: childY });
 
-          // Conexión desde padres
-          const parentCoupleNode = flowNodes.find(n =>
-            n.type === 'couple' && parentIds.some(pId =>
-              (n.data as any).person1?.id === pId || (n.data as any).person2?.id === pId
-            )
-          );
-          const parentSingleNode = flowNodes.find(n => parentIds.includes(n.id) && n.type === 'person');
-          const sourceNode = parentCoupleNode || parentSingleNode;
-
           if (sourceNode) {
             if (parentIds.includes(p1.id) || p1.parents?.some((pid: string) => parentIds.includes(pid))) {
-              flowEdges.push({
-                id: `edge-${sourceNode.id}-to-${p1.id}`,
-                source: sourceNode.id,
-                target: coupleId,
-                targetHandle: `top-${p1.id}`,
-                type: edgeType,
-              });
+              pendingConnections.push({ personId: p1.id, targetNodeId: coupleId, targetHandle: `top-${p1.id}` });
             }
             if (parentIds.includes(p2.id) || p2.parents?.some((pid: string) => parentIds.includes(pid))) {
-              flowEdges.push({
-                id: `edge-${sourceNode.id}-to-${p2.id}`,
-                source: sourceNode.id,
-                target: coupleId,
-                targetHandle: `top-${p2.id}`,
-                type: edgeType,
-              });
+              pendingConnections.push({ personId: p2.id, targetNodeId: coupleId, targetHandle: `top-${p2.id}` });
             }
           }
 
@@ -347,21 +414,8 @@ export const FamilyTree: React.FC = () => {
           });
           nodePositions.set(child.id, { x: nodeX, y: childY });
 
-          const parentCoupleNode = flowNodes.find(n =>
-            n.type === 'couple' && parentIds.some(pId =>
-              (n.data as any).person1?.id === pId || (n.data as any).person2?.id === pId
-            )
-          );
-          const parentSingleNode = flowNodes.find(n => parentIds.includes(n.id) && n.type === 'person');
-          const sourceNode = parentCoupleNode || parentSingleNode;
-
           if (sourceNode) {
-            flowEdges.push({
-              id: `edge-${sourceNode.id}-to-${child.id}`,
-              source: sourceNode.id,
-              target: child.id,
-              type: edgeType,
-            });
+            pendingConnections.push({ personId: child.id, targetNodeId: child.id });
           }
 
           renderDescendants([child.id], blockCenterX, childY, depth + 1);
@@ -369,6 +423,24 @@ export const FamilyTree: React.FC = () => {
 
         currentX += block.width + SIBLING_GAP;
       });
+
+      if (sourceNode) {
+        const groupKey = `${sourceNode.id}-desc-${depth}-${Math.round(childY)}`;
+
+        if (isRusticVisual) {
+          addRusticBranchGroup(sourceNode.id, groupKey, pendingConnections);
+        } else {
+          pendingConnections.forEach(c => {
+            flowEdges.push({
+              id: `edge-${sourceNode.id}-to-${c.personId}`,
+              source: sourceNode.id,
+              target: c.targetNodeId,
+              targetHandle: c.targetHandle,
+              type: edgeType,
+            });
+          });
+        }
+      }
     };
 
     // Calcular ancho de rama ancestral (hacia arriba)
@@ -467,22 +539,33 @@ export const FamilyTree: React.FC = () => {
         nodePositions.set(coupleId, { x: parentsNodeX, y: parentY });
 
         // Conectar a todos los hijos
-        childrenNodes.forEach(child => {
-          const childNode = flowNodes.find(n =>
-            n.id === child.id ||
-            (n.type === 'couple' && ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id))
-          );
-          if (childNode) {
+        {
+          const pendingConnections: Array<{ personId: string; targetNodeId: string; targetHandle?: string }> = [];
+          childrenNodes.forEach(child => {
+            const childNode = flowNodes.find(n =>
+              n.id === child.id ||
+              (n.type === 'couple' && ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id))
+            );
+            if (!childNode) return;
             const targetHandle = childNode.type === 'couple' ? `top-${child.id}` : undefined;
-            flowEdges.push({
-              id: `edge-${coupleId}-to-${child.id}`,
-              source: coupleId,
-              target: childNode.id,
-              targetHandle,
-              type: edgeType,
+            pendingConnections.push({ personId: child.id, targetNodeId: childNode.id, targetHandle });
+          });
+
+          const groupKey = `${coupleId}-anc-${depth}-${Math.round(baseY)}`;
+          if (isRusticVisual) {
+            addRusticBranchGroup(coupleId, groupKey, pendingConnections);
+          } else {
+            pendingConnections.forEach(c => {
+              flowEdges.push({
+                id: `edge-${coupleId}-to-${c.personId}`,
+                source: coupleId,
+                target: c.targetNodeId,
+                targetHandle: c.targetHandle,
+                type: edgeType,
+              });
             });
           }
-        });
+        }
 
         // --- TÍOS (Hermanos de los padres) ---
         let p1Siblings: any[] = [];
@@ -641,12 +724,27 @@ export const FamilyTree: React.FC = () => {
         flowNodes.push({ id: p1.id, type: 'person', position: { x: parentsNodeX, y: parentY }, data: p1 });
         nodePositions.set(p1.id, { x: parentsNodeX, y: parentY });
 
-        childrenNodes.forEach(child => {
-          const childNode = flowNodes.find(n =>
-            n.id === child.id ||
-            (n.type === 'couple' && ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id))
-          );
-          if (childNode) {
+        if (isRusticVisual) {
+          const pendingConnections: Array<{ personId: string; targetNodeId: string; targetHandle?: string }> = [];
+          childrenNodes.forEach(child => {
+            const childNode = flowNodes.find(n =>
+              n.id === child.id ||
+              (n.type === 'couple' && ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id))
+            );
+            if (!childNode) return;
+            const targetHandle = childNode.type === 'couple' ? `top-${child.id}` : undefined;
+            pendingConnections.push({ personId: child.id, targetNodeId: childNode.id, targetHandle });
+          });
+
+          const groupKey = `${p1.id}-anc-${depth}-${Math.round(baseY)}`;
+          addRusticBranchGroup(p1.id, groupKey, pendingConnections);
+        } else {
+          childrenNodes.forEach(child => {
+            const childNode = flowNodes.find(n =>
+              n.id === child.id ||
+              (n.type === 'couple' && ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id))
+            );
+            if (!childNode) return;
             const targetHandle = childNode.type === 'couple' ? `top-${child.id}` : undefined;
             flowEdges.push({
               id: `edge-${p1.id}-to-${child.id}`,
@@ -655,8 +753,8 @@ export const FamilyTree: React.FC = () => {
               targetHandle,
               type: edgeType,
             });
-          }
-        });
+          });
+        }
 
         renderAncestors([p1], parentsCenterX, parentY, depth + 1);
       }
