@@ -149,7 +149,7 @@ export const FamilyTree: React.FC = () => {
     const VERTICAL_SPACING = isMobile ? 200 : 280; // Más aire vertical
 
     // Límites de generaciones para evitar solapamiento
-    const MAX_ANCESTOR_DEPTH = 2;    // Padres, abuelos
+    const MAX_ANCESTOR_DEPTH = 3;    // Padres, abuelos, bisabuelos
     const MAX_DESCENDANT_DEPTH = 2;  // Hijos, nietos
 
     const focusPerson = familyById.get(focusId);
@@ -629,6 +629,14 @@ export const FamilyTree: React.FC = () => {
         let p1GroupLeft = parentsNodeX;
         let p1GroupRight = parentsNodeX + (p2 ? COUPLE_WIDTH / 2 : SINGLE_WIDTH);
 
+        // Cuando no hay hermanos (depth > 0), establecer límites separados para cada padre
+        // para que los bisabuelos queden bien separados
+        if (p1Siblings.length === 0 && depth > 0) {
+          // p1 está en la mitad izquierda del couple, su grupo debe extenderse a la izquierda
+          p1GroupLeft = parentsNodeX - COUSIN_GAP / 2;
+          p1GroupRight = parentsNodeX + COUPLE_WIDTH / 4;
+        }
+
         let leftBoundaryX = parentsCenterX - centralHalfWidth - COUSIN_GAP;
         p1Siblings.forEach(sib => {
           const sibEstVisited = new Set(visited);
@@ -684,6 +692,13 @@ export const FamilyTree: React.FC = () => {
         let p2GroupLeft = parentsNodeX + (p2 ? COUPLE_WIDTH / 2 : 0);
         let p2GroupRight = parentsNodeX + parentNodeWidth;
 
+        // Cuando no hay hermanos (depth > 0), establecer límites separados para cada padre
+        if (p2Siblings.length === 0 && depth > 0 && p2) {
+          // p2 está en la mitad derecha del couple, su grupo debe extenderse a la derecha
+          p2GroupLeft = parentsNodeX + 3 * COUPLE_WIDTH / 4;
+          p2GroupRight = parentsNodeX + COUPLE_WIDTH + COUSIN_GAP / 2;
+        }
+
         let rightBoundaryX = parentsCenterX + centralHalfWidth + COUSIN_GAP;
         p2Siblings.forEach(sib => {
           const sibEstVisited = new Set(visited);
@@ -735,9 +750,21 @@ export const FamilyTree: React.FC = () => {
         });
         const p2GroupCenterX = (p2GroupLeft + p2GroupRight) / 2;
 
-        // --- RECURSIÓN: SUBIR A ABUELOS ---
-        renderAncestors([p1, ...p1Siblings], p1GroupCenterX, parentY, depth + 1);
-        renderAncestors([p2, ...p2Siblings], p2GroupCenterX, parentY, depth + 1);
+        // --- RECURSIÓN: SUBIR A ABUELOS/BISABUELOS ---
+        // Cuando no hay hermanos (depth > 0), necesitamos asegurar separación entre grupos
+        // Calcular el offset necesario para que los grupos no se solapen
+        const minSeparation = COUPLE_WIDTH + COUSIN_GAP;
+        const currentSeparation = Math.abs(p2GroupCenterX - p1GroupCenterX);
+        
+        if (currentSeparation < minSeparation && depth > 0) {
+          // Si los centros están muy juntos, separar los grupos
+          const adjustment = (minSeparation - currentSeparation) / 2;
+          renderAncestors([p1, ...p1Siblings], p1GroupCenterX - adjustment, parentY, depth + 1);
+          renderAncestors([p2, ...p2Siblings], p2GroupCenterX + adjustment, parentY, depth + 1);
+        } else {
+          renderAncestors([p1, ...p1Siblings], p1GroupCenterX, parentY, depth + 1);
+          renderAncestors([p2, ...p2Siblings], p2GroupCenterX, parentY, depth + 1);
+        }
 
       } else {
         // Padre soltero
