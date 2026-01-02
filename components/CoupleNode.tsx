@@ -85,7 +85,7 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
     return (
       <div
         onClick={(e) => { e.stopPropagation(); onClick(); }}
-        className="flex flex-1 min-w-0 flex-col items-center justify-start cursor-pointer transition-all duration-200 py-1 px-1 hover:opacity-80 w-[100px]"
+        className="flex flex-1 min-w-0 flex-col items-center justify-start cursor-pointer transition-all duration-200 py-1.5 px-1 hover:opacity-80 w-[90px]"
       >
         {/* Nombre */}
         <h3 
@@ -255,13 +255,13 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
       if (formattedSurnames.length > maxSurnamesLen) maxSurnamesLen = formattedSurnames.length;
     }
     
-    // Ancho de cada mitad del couple node (ajustado para dejar espacio a los anillos)
-    const boxWidth = 100;
-    const charWidthRatioName = 0.65;
-    const charWidthRatioSurnames = 0.55;
+    // Ancho de cada mitad del couple node (igual que PersonNode individual)
+    const boxWidth = 90;
+    const charWidthRatioName = 0.6;
+    const charWidthRatioSurnames = 0.5;
     
-    const nameFontSize = Math.min(13, Math.max(7, Math.floor(boxWidth / (maxNameLen * charWidthRatioName))));
-    const surnamesFontSize = Math.min(11, Math.max(6, Math.floor(boxWidth / (maxSurnamesLen * charWidthRatioSurnames))));
+    const nameFontSize = Math.min(11, Math.max(7, Math.floor(boxWidth / (maxNameLen * charWidthRatioName))));
+    const surnamesFontSize = Math.min(9, Math.max(6, Math.floor(boxWidth / (maxSurnamesLen * charWidthRatioSurnames))));
     
     return { nameFontSize, surnamesFontSize };
   };
@@ -272,7 +272,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
     
     return (
       <div
-        className="rustic-couple-node relative flex items-start justify-center cursor-pointer py-2 px-2 w-[240px]"
+        className="rustic-couple-node relative flex items-start justify-center cursor-pointer py-1 px-2 w-[200px]"
       >
         <Handle
           type="target"
@@ -320,7 +320,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
           boxShadow: hasAnyFocus ? '0 0 20px rgba(104, 144, 156, 0.3)' : undefined
         }}
         className={`
-          relative flex w-[200px] h-[130px] items-center gap-0 rounded-xl p-1 border
+          relative flex w-[160px] h-[100px] items-center gap-0 rounded-xl p-0.5 border
           transition-all duration-300 ease-out
           ${hasAnyFocus ? 'ring-2' : 'hover:shadow-md'}
           backdrop-blur-xl
@@ -374,7 +374,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
         boxShadow: hasAnyFocus ? '0 0 25px rgba(104, 144, 156, 0.35)' : undefined
       }}
       className={`
-        relative flex w-[260px] h-auto items-center gap-0 rounded-[20px] p-1.5 border
+        relative flex w-[200px] h-auto items-center gap-0 rounded-[16px] p-1 border
         transition-all duration-300 ease-out
         ${hasAnyFocus ? 'ring-2' : 'hover:shadow-lg'}
         backdrop-blur-xl

@@ -95,16 +95,15 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
       if (formattedSurnames.length > maxSurnamesLen) maxSurnamesLen = formattedSurnames.length;
     }
     
-    // Ancho fijo de la caja (sin padding)
-    const boxWidth = 110; // px
+    // Ancho fijo de la caja (sin padding) - compacto
+    const boxWidth = 90; // px
     
     // Calcular tamaño de fuente para que quepa el texto más largo
-    // Aproximación: cada carácter ocupa ~0.6 * fontSize en Cinzel
-    const charWidthRatioName = 0.65;
-    const charWidthRatioSurnames = 0.55;
+    const charWidthRatioName = 0.6;
+    const charWidthRatioSurnames = 0.5;
     
-    const nameFontSize = Math.min(13, Math.max(8, Math.floor(boxWidth / (maxNameLen * charWidthRatioName))));
-    const surnamesFontSize = Math.min(11, Math.max(7, Math.floor(boxWidth / (maxSurnamesLen * charWidthRatioSurnames))));
+    const nameFontSize = Math.min(11, Math.max(7, Math.floor(boxWidth / (maxNameLen * charWidthRatioName))));
+    const surnamesFontSize = Math.min(9, Math.max(6, Math.floor(boxWidth / (maxSurnamesLen * charWidthRatioSurnames))));
     
     return { nameFontSize, surnamesFontSize };
   };
@@ -119,7 +118,7 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
           e.stopPropagation();
           setFocusId(data.id);
         }}
-        className="rustic-node relative flex flex-col items-center justify-center cursor-pointer py-2 px-3 w-[120px]"
+        className="rustic-node relative flex flex-col items-center justify-center cursor-pointer py-1.5 px-2 w-[100px]"
       >
         <Handle type="target" position={Position.Top} className="bg-transparent! border-none! w-full! h-3! top-0!" />
         <Handle type="source" position={Position.Bottom} className="bg-transparent! border-none! w-full! h-3! bottom-0!" />
@@ -168,8 +167,8 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
           boxShadow: isFocus ? '0 0 20px rgba(104, 144, 156, 0.3)' : undefined
         }}
         className={`
-          relative flex flex-col items-center p-2 rounded-xl cursor-pointer 
-          transition-all duration-300 ease-out w-[100px] border
+          relative flex flex-col items-center p-1.5 rounded-xl cursor-pointer 
+          transition-all duration-300 ease-out w-[80px] border
           ${isFocus ? 'ring-2' : 'hover:shadow-md'}
           backdrop-blur-xl
         `}
@@ -183,18 +182,18 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
           <div
             style={{
               borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
-              boxShadow: isFocus ? '0 0 12px rgba(104, 144, 156, 0.4)' : undefined
+              boxShadow: isFocus ? '0 0 10px rgba(104, 144, 156, 0.4)' : undefined
             }}
-            className="w-10 h-10 rounded-full overflow-hidden shadow-md ring-2 transition-all duration-200"
+            className="w-8 h-8 rounded-full overflow-hidden shadow-sm ring-1 transition-all duration-200"
           >
             <img src={data.photo} alt="" className="w-full h-full object-cover" />
           </div>
         ) : (
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md ${colors.bg} ${colors.text} ring-2 transition-all duration-200`}
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-[8px] font-bold shadow-sm ${colors.bg} ${colors.text} ring-1 transition-all duration-200`}
             style={{
               borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
-              boxShadow: isFocus ? '0 0 12px rgba(104, 144, 156, 0.4)' : undefined
+              boxShadow: isFocus ? '0 0 10px rgba(104, 144, 156, 0.4)' : undefined
             }}
           >
             {initials}
@@ -203,20 +202,20 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
 
         <span
           style={{ color: isFocus ? 'var(--accent-highlight)' : 'var(--app-text-subtle)' }}
-          className="text-[8px] font-semibold tracking-wide mt-1"
+          className="text-[7px] font-semibold tracking-wide mt-0.5"
         >
           {label}
         </span>
-        <div className="flex flex-col items-center mt-0.5 w-full px-1">
+        <div className="flex flex-col items-center mt-0.5 w-full px-0.5">
           <h3 
             style={{ color: 'var(--app-text)' }} 
-            className="text-[11px] font-semibold leading-tight text-center wrap-break-word w-full"
+            className="text-[9px] font-semibold leading-tight text-center wrap-break-word w-full"
           >
             {formatText(data.name)}
           </h3>
           <p 
             style={{ color: 'var(--app-text-muted)' }} 
-            className="text-[9px] text-center leading-tight mt-0.5 wrap-break-word w-full"
+            className="text-[8px] text-center leading-tight mt-0.5 wrap-break-word w-full"
           >
             {formatText(data.surnames)}
           </p>
@@ -238,8 +237,8 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
         boxShadow: isFocus ? '0 0 25px rgba(104, 144, 156, 0.35)' : undefined
       }}
       className={`
-        relative flex flex-col items-center p-3 rounded-[20px] cursor-pointer 
-        transition-all duration-300 ease-out w-[130px] h-auto border
+        relative flex flex-col items-center p-2 rounded-[16px] cursor-pointer 
+        transition-all duration-300 ease-out w-[100px] h-auto border
         ${isFocus ? 'ring-2' : 'hover:shadow-lg'}
         backdrop-blur-xl
       `}
@@ -253,18 +252,18 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
         <div
           style={{
             borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
-            boxShadow: isFocus ? '0 0 15px rgba(104, 144, 156, 0.4)' : undefined
+            boxShadow: isFocus ? '0 0 12px rgba(104, 144, 156, 0.4)' : undefined
           }}
-          className="w-12 h-12 rounded-full overflow-hidden shadow-lg ring-[3px] transition-all duration-200 mb-2"
+          className="w-9 h-9 rounded-full overflow-hidden shadow-md ring-2 transition-all duration-200 mb-1"
         >
           <img src={data.photo} alt="" className="w-full h-full object-cover" />
         </div>
       ) : (
         <div
-          className={`w-12 h-12 rounded-full flex items-center justify-center text-base font-bold shadow-lg ${colors.bg} ${colors.text} ring-[3px] transition-all duration-200 mb-2`}
+          className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-md ${colors.bg} ${colors.text} ring-2 transition-all duration-200 mb-1`}
           style={{
             borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
-            boxShadow: isFocus ? '0 0 15px rgba(104, 144, 156, 0.4)' : undefined
+            boxShadow: isFocus ? '0 0 12px rgba(104, 144, 156, 0.4)' : undefined
           }}
         >
           {initials}
@@ -273,20 +272,20 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
 
       <span
         style={{ color: isFocus ? 'var(--accent-highlight)' : 'var(--app-text-subtle)' }}
-        className="text-[9px] font-semibold tracking-wider"
+        className="text-[8px] font-semibold tracking-wider"
       >
         {label}
       </span>
-      <div className="flex flex-col items-center mt-1 w-full px-1">
+      <div className="flex flex-col items-center mt-0.5 w-full px-0.5">
         <h3 
           style={{ color: 'var(--app-text)' }} 
-          className="text-[13px] font-bold leading-tight text-center wrap-break-word w-full"
+          className="text-[10px] font-bold leading-tight text-center wrap-break-word w-full"
         >
           {formatText(data.name)}
         </h3>
         <p 
           style={{ color: 'var(--app-text-muted)' }} 
-          className="text-[11px] text-center leading-normal mt-1 wrap-break-word w-full"
+          className="text-[9px] text-center leading-normal mt-0.5 wrap-break-word w-full"
         >
           {formatText(data.surnames)}
         </p>

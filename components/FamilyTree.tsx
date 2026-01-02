@@ -52,8 +52,8 @@ const FlowContent: React.FC<{ nodes: Node[]; edges: Edge[]; focusId: string }> =
       });
 
       if (focusNode) {
-        const nodeWidth = focusNode.type === 'couple' ? 260 : 130;
-        const nodeHeight = 140;
+        const nodeWidth = focusNode.type === 'couple' ? 200 : 100;
+        const nodeHeight = 100;
         const centerX = focusNode.position.x + nodeWidth / 2;
         const centerY = focusNode.position.y + nodeHeight / 2;
 
@@ -130,12 +130,12 @@ export const FamilyTree: React.FC = () => {
               element.insertBefore(overlayDiv, element.firstChild);
             }
 
-            // 3. Generar la imagen con alta calidad
+            // 3. Generar la imagen con calidad máxima para zoom sin pérdida
             const dataUrl = await toPng(element, {
               backgroundColor: visualTheme === 'rustic' 
                 ? '#b8a67a' // Color base del pergamino
                 : (theme === 'dark' ? '#0e100a' : '#f4f5ef'),
-              pixelRatio: 4, // Ultra alta calidad
+              pixelRatio: 6, // Calidad máxima para zoom extremo sin pérdida
               filter: (node) => {
                 // Ocultar elementos innecesarios en la foto
                 const exclusionClasses = [
@@ -183,12 +183,12 @@ export const FamilyTree: React.FC = () => {
     const familyById = new Map<string, any>();
     familyNodes.forEach(p => familyById.set(p.id, p));
 
-    // Tamaños responsivos (más compactos y con aire)
-    const COUPLE_WIDTH = isMobile ? 200 : 260;
-    const SINGLE_WIDTH = isMobile ? 100 : 130;
-    const SIBLING_GAP = isMobile ? 20 : 40;      // Espacio entre hermanos (más juntos)
-    const COUSIN_GAP = isMobile ? 60 : 120;      // Espacio entre primos (más separados)
-    const VERTICAL_SPACING = isMobile ? 200 : 280; // Más aire vertical
+    // Tamaños compactos para DIN A4
+    const COUPLE_WIDTH = isMobile ? 160 : 200;
+    const SINGLE_WIDTH = isMobile ? 80 : 100;
+    const SIBLING_GAP = isMobile ? 12 : 20;      // Espacio entre hermanos
+    const COUSIN_GAP = isMobile ? 40 : 60;       // Espacio entre primos
+    const VERTICAL_SPACING = isMobile ? 140 : 180; // Espacio vertical entre generaciones
 
     // Límites de generaciones para evitar solapamiento
     const MAX_ANCESTOR_DEPTH = 3;    // Padres, abuelos, bisabuelos
