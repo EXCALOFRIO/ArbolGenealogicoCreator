@@ -160,13 +160,13 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
         <div className="flex flex-col items-center mt-0.5 w-full px-1">
           <h3 
             style={{ color: 'var(--app-text)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
-            className="text-[10px] font-semibold leading-tight text-center break-words w-full"
+            className="text-[10px] font-semibold leading-tight text-center wrap-break-word w-full"
           >
             {person.name}
           </h3>
           <p 
             style={{ color: 'var(--app-text-muted)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
-            className="text-[8px] text-center leading-tight mt-0.5 break-words w-full"
+            className="text-[8px] text-center leading-tight mt-0.5 wrap-break-word w-full"
           >
             {person.surnames}
           </p>
@@ -215,8 +215,8 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
         {isFocus ? 'YO' : getRelationLabel(person.relationType, person.gender)}
       </span>
       <div className="flex flex-col items-center mt-1 w-full px-1">
-        <h3 style={{ color: 'var(--app-text)' }} className="text-[12px] font-bold leading-tight text-center break-words w-full">{person.name}</h3>
-        <p style={{ color: 'var(--app-text-muted)' }} className="text-[10px] text-center leading-normal mt-0.5 break-words w-full">{person.surnames}</p>
+        <h3 style={{ color: 'var(--app-text)' }} className="text-[12px] font-bold leading-tight text-center wrap-break-word w-full">{person.name}</h3>
+        <p style={{ color: 'var(--app-text-muted)' }} className="text-[10px] text-center leading-normal mt-0.5 wrap-break-word w-full">{person.surnames}</p>
       </div>
     </div>
   );
@@ -278,20 +278,20 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
           type="target"
           position={Position.Top}
           id={`top-${person1.id}`}
-          className="!bg-transparent !border-none"
+          className="bg-transparent! border-none!"
           style={{ left: '25%' }}
         />
         <Handle
           type="target"
           position={Position.Top}
           id={`top-${person2.id}`}
-          className="!bg-transparent !border-none"
+          className="bg-transparent! border-none!"
           style={{ left: '75%' }}
         />
         <Handle
           type="source"
           position={Position.Bottom}
-          className="!bg-transparent !border-none"
+          className="bg-transparent! border-none!"
           style={{ left: '50%' }}
         />
 
@@ -330,20 +330,20 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
           type="target"
           position={Position.Top}
           id={`top-${person1.id}`}
-          className="!bg-transparent !border-none"
+          className="bg-transparent! border-none!"
           style={{ left: '25%' }}
         />
         <Handle
           type="target"
           position={Position.Top}
           id={`top-${person2.id}`}
-          className="!bg-transparent !border-none"
+          className="bg-transparent! border-none!"
           style={{ left: '75%' }}
         />
         <Handle
           type="source"
           position={Position.Bottom}
-          className="!bg-transparent !border-none"
+          className="bg-transparent! border-none!"
           style={{ left: '50%' }}
         />
 
@@ -385,21 +385,21 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
         type="target"
         position={Position.Top}
         id={`top-${person1.id}`}
-        className="!bg-transparent !border-none"
+        className="bg-transparent! border-none!"
         style={{ left: '25%' }}
       />
       <Handle
         type="target"
         position={Position.Top}
         id={`top-${person2.id}`}
-        className="!bg-transparent !border-none"
+        className="bg-transparent! border-none!"
         style={{ left: '75%' }}
       />
       {/* Handle general para hijos (centro) */}
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-transparent !border-none"
+        className="bg-transparent! border-none!"
         style={{ left: '50%' }}
       />
 

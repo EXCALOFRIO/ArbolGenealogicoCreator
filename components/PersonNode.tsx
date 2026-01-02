@@ -121,10 +121,10 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
         }}
         className="rustic-node relative flex flex-col items-center justify-center cursor-pointer py-2 px-3 w-[120px]"
       >
-        <Handle type="target" position={Position.Top} className="!bg-transparent !border-none !w-full !h-3 !top-0" />
-        <Handle type="source" position={Position.Bottom} className="!bg-transparent !border-none !w-full !h-3 !bottom-0" />
-        <Handle type="source" position={Position.Left} id="left" className="!bg-transparent !border-none" />
-        <Handle type="source" position={Position.Right} id="right" className="!bg-transparent !border-none" />
+        <Handle type="target" position={Position.Top} className="bg-transparent! border-none! w-full! h-3! top-0!" />
+        <Handle type="source" position={Position.Bottom} className="bg-transparent! border-none! w-full! h-3! bottom-0!" />
+        <Handle type="source" position={Position.Left} id="left" className="bg-transparent! border-none!" />
+        <Handle type="source" position={Position.Right} id="right" className="bg-transparent! border-none!" />
 
         {/* Nombre */}
         <h3 
@@ -135,7 +135,7 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
         </h3>
         
         {/* Línea divisoria simple */}
-        <div className="rustic-divider w-full h-[1px] my-1" />
+        <div className="rustic-divider w-full h-px my-1" />
         
         {/* Apellidos - cada uno en su línea */}
         <div className="flex flex-col items-center">
@@ -174,10 +174,10 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
           backdrop-blur-xl
         `}
       >
-        <Handle type="target" position={Position.Top} className="!bg-transparent !border-none !w-full !h-3 !top-0" />
-        <Handle type="source" position={Position.Bottom} className="!bg-transparent !border-none !w-full !h-3 !bottom-0" />
-        <Handle type="source" position={Position.Left} id="left" className="!bg-transparent !border-none" />
-        <Handle type="source" position={Position.Right} id="right" className="!bg-transparent !border-none" />
+        <Handle type="target" position={Position.Top} className="bg-transparent! border-none! w-full! h-3! top-0!" />
+        <Handle type="source" position={Position.Bottom} className="bg-transparent! border-none! w-full! h-3! bottom-0!" />
+        <Handle type="source" position={Position.Left} id="left" className="bg-transparent! border-none!" />
+        <Handle type="source" position={Position.Right} id="right" className="bg-transparent! border-none!" />
 
         {data.photo ? (
           <div
@@ -210,13 +210,13 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
         <div className="flex flex-col items-center mt-0.5 w-full px-1">
           <h3 
             style={{ color: 'var(--app-text)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
-            className="text-[11px] font-semibold leading-tight text-center break-words w-full"
+            className="text-[11px] font-semibold leading-tight text-center wrap-break-word w-full"
           >
             {data.name}
           </h3>
           <p 
             style={{ color: 'var(--app-text-muted)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
-            className="text-[9px] text-center leading-tight mt-0.5 break-words w-full"
+            className="text-[9px] text-center leading-tight mt-0.5 wrap-break-word w-full"
           >
             {data.surnames}
           </p>
@@ -244,10 +244,10 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
         backdrop-blur-xl
       `}
     >
-      <Handle type="target" position={Position.Top} className="!bg-transparent !border-none !w-full !h-4 !top-0" />
-      <Handle type="source" position={Position.Bottom} className="!bg-transparent !border-none !w-full !h-4 !bottom-0" />
-      <Handle type="source" position={Position.Left} id="left" className="!bg-transparent !border-none" />
-      <Handle type="source" position={Position.Right} id="right" className="!bg-transparent !border-none" />
+      <Handle type="target" position={Position.Top} className="bg-transparent! border-none! w-full! h-4! top-0!" />
+      <Handle type="source" position={Position.Bottom} className="bg-transparent! border-none! w-full! h-4! bottom-0!" />
+      <Handle type="source" position={Position.Left} id="left" className="bg-transparent! border-none!" />
+      <Handle type="source" position={Position.Right} id="right" className="bg-transparent! border-none!" />
 
       {data.photo ? (
         <div
@@ -280,13 +280,13 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
       <div className="flex flex-col items-center mt-1 w-full px-1">
         <h3 
           style={{ color: 'var(--app-text)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
-          className="text-[13px] font-bold leading-tight text-center break-words w-full"
+          className="text-[13px] font-bold leading-tight text-center wrap-break-word w-full"
         >
           {data.name}
         </h3>
         <p 
           style={{ color: 'var(--app-text-muted)', textTransform: textCase === 'uppercase' ? 'uppercase' : 'capitalize' }} 
-          className="text-[11px] text-center leading-normal mt-1 break-words w-full"
+          className="text-[11px] text-center leading-normal mt-1 wrap-break-word w-full"
         >
           {data.surnames}
         </p>
