@@ -10,11 +10,25 @@ interface Props {
 
 export const PersonCard = forwardRef<HTMLDivElement, Props>(({ node }, ref) => {
   const setFocusId = useFamilyStore(state => state.setFocusId);
+  const textCase = useFamilyStore(state => state.textCase);
   const colors = getGroupColor(node.surnames);
   const isFocus = node.relationType === 'Focus';
   
   // Iniciales para el avatar
   const initials = node.name.substring(0, 2).toUpperCase();
+
+  // Función para formatear texto según textCase
+  const formatText = (text: string) => {
+    if (textCase === 'uppercase') {
+      return text.toUpperCase();
+    }
+    // capitalize: primera letra de cada palabra en mayúscula
+    return text
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
 
   // Traducción de relaciones
   const getRelationLabel = (type: string, gender: string) => {
@@ -74,8 +88,8 @@ export const PersonCard = forwardRef<HTMLDivElement, Props>(({ node }, ref) => {
             <span style={{ color: isFocus ? 'var(--accent-highlight)' : 'var(--app-text-muted)' }} className="text-[8px] sm:text-[10px] font-bold tracking-widest mb-0.5">
                 {label}
             </span>
-            <h3 style={{ color: 'var(--app-text)' }} className="text-xs sm:text-sm font-bold leading-none whitespace-nowrap truncate">{node.name}</h3>
-            <p style={{ color: 'var(--app-text-muted)' }} className="text-[8px] sm:text-[10px] font-medium uppercase tracking-wide mt-0.5 truncate">{node.surnames}</p>
+            <h3 style={{ color: 'var(--app-text)' }} className="text-xs sm:text-sm font-bold leading-none whitespace-nowrap truncate">{formatText(node.name)}</h3>
+            <p style={{ color: 'var(--app-text-muted)' }} className="text-[8px] sm:text-[10px] font-medium tracking-wide mt-0.5 truncate">{formatText(node.surnames)}</p>
         </div>
 
         {/* Focus indicator */}

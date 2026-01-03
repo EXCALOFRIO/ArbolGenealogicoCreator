@@ -137,7 +137,7 @@ export const FamilyTree: React.FC = () => {
               backgroundColor: visualTheme === 'rustic' 
                 ? '#b8a67a' // Color base del pergamino
                 : (theme === 'dark' ? '#0e100a' : '#f4f5ef'),
-              pixelRatio: 3, // Calidad máxima para zoom extremo sin pérdida
+              pixelRatio: 2, // Calidad máxima para zoom extremo sin pérdida
               filter: (node) => {
                 // Ocultar elementos innecesarios en la foto
                 const exclusionClasses = [
@@ -185,16 +185,26 @@ export const FamilyTree: React.FC = () => {
     const familyById = new Map<string, any>();
     familyNodes.forEach(p => familyById.set(p.id, p));
 
-    // Tamaños para DIN A4
-    const COUPLE_WIDTH = isMobile ? 150 : 180;
-    const SINGLE_WIDTH = isMobile ? 75 : 90;
-    const SIBLING_LIST_WIDTH = isMobile ? 80 : 100; // Ancho para cajas de hijos compactas
-    const SIBLING_GAP = isMobile ? 10 : 16;
-    const COUSIN_GAP = isMobile ? 30 : 50;
+    // Tamaños - más compactos en modo compacto
+    const COUPLE_WIDTH = compactMode 
+      ? (isMobile ? 130 : 150) 
+      : (isMobile ? 150 : 180);
+    const SINGLE_WIDTH = compactMode 
+      ? (isMobile ? 65 : 80) 
+      : (isMobile ? 75 : 90);
+    const SIBLING_LIST_WIDTH = compactMode 
+      ? (isMobile ? 70 : 85) 
+      : (isMobile ? 80 : 100);
+    const SIBLING_GAP = compactMode 
+      ? (isMobile ? 6 : 10) 
+      : (isMobile ? 10 : 16);
+    const COUSIN_GAP = compactMode 
+      ? (isMobile ? 15 : 25) 
+      : (isMobile ? 30 : 50);
     // Rústico más compacto, moderno más separado
-    const VERTICAL_SPACING = isRusticVisual 
-      ? (isMobile ? 130 : 160)
-      : (isMobile ? 160 : 200);
+    const VERTICAL_SPACING = compactMode
+      ? (isRusticVisual ? (isMobile ? 100 : 120) : (isMobile ? 120 : 140))
+      : (isRusticVisual ? (isMobile ? 130 : 160) : (isMobile ? 160 : 200));
 
     // Límites de generaciones para evitar solapamiento
     const MAX_ANCESTOR_DEPTH = 3;
@@ -247,8 +257,10 @@ export const FamilyTree: React.FC = () => {
 
     const getSourceBottomY = (sourceNodeId: string) => {
       const pos = nodePositions.get(sourceNodeId);
-      // Altura del nodo - más compacto en rústico
-      const NODE_HEIGHT = isRusticVisual ? 100 : 140;
+      // Altura del nodo - más compacto en modo compacto y rústico
+      const NODE_HEIGHT = compactMode 
+        ? (isRusticVisual ? 80 : 100) 
+        : (isRusticVisual ? 100 : 140);
       return pos ? pos.y + NODE_HEIGHT : 0;
     };
 
@@ -1190,12 +1202,12 @@ export const FamilyTree: React.FC = () => {
         nodesConnectable={false}
         elementsSelectable={true}
         panOnDrag={true}
-        panOnScroll={true}
+        panOnScroll={false}
         zoomOnScroll={true}
         zoomOnPinch={true}
         zoomOnDoubleClick={true}
         preventScrolling={true}
-        fitViewOptions={{ padding: 0.6, duration: 400 }}
+        fitViewOptions={{ padding: 0.1, duration: 400 }}
         connectionLineType={ConnectionLineType.SmoothStep}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={{
@@ -1258,7 +1270,7 @@ export const FamilyTree: React.FC = () => {
           </svg>
         </button>
         <button
-          onClick={() => fitView({ padding: 0.4, duration: 400 })}
+          onClick={() => fitView({ padding: 0.05, duration: 400 })}
           style={{
             background: 'var(--card-bg)',
             borderColor: 'var(--card-border)',

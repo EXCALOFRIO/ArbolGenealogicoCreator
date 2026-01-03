@@ -82,10 +82,12 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
 
   // ============ ESTILO RÚSTICO ============
   if (isRustic) {
+    // Ancho dinámico según modo compacto
+    const avatarWidth = compact ? 'w-[70px]' : 'w-[85px]';
     return (
       <div
         onClick={(e) => { e.stopPropagation(); onClick(); }}
-        className="flex flex-1 min-w-0 flex-col items-center justify-start cursor-pointer transition-all duration-200 py-1 px-0.5 hover:opacity-80 w-[85px]"
+        className={`flex flex-1 min-w-0 flex-col items-center justify-start cursor-pointer transition-all duration-200 py-1 px-0.5 hover:opacity-80 ${avatarWidth}`}
       >
         {/* Nombre */}
         <h3 
@@ -215,8 +217,8 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
         {isFocus ? 'YO' : getRelationLabel(person.relationType, person.gender)}
       </span>
       <div className="flex flex-col items-center mt-1 w-full px-1">
-        <h3 style={{ color: 'var(--app-text)' }} className="text-[12px] font-bold leading-tight text-center wrap-break-word w-full">{person.name}</h3>
-        <p style={{ color: 'var(--app-text-muted)' }} className="text-[10px] text-center leading-normal mt-0.5 wrap-break-word w-full">{person.surnames}</p>
+        <h3 style={{ color: 'var(--app-text)' }} className="text-[12px] font-bold leading-tight text-center wrap-break-word w-full">{formatText(person.name)}</h3>
+        <p style={{ color: 'var(--app-text-muted)' }} className="text-[10px] text-center leading-normal mt-0.5 wrap-break-word w-full">{formatText(person.surnames)}</p>
       </div>
     </div>
   );
@@ -227,6 +229,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
   const focusId = useFamilyStore(state => state.focusId);
   const visualTheme = useFamilyStore(state => state.visualTheme);
   const textCase = useFamilyStore(state => state.textCase);
+  const compactMode = useFamilyStore(state => state.compactMode);
   const people = useFamilyStore(state => state.people);
   const isMobile = useIsMobile();
   const isRustic = visualTheme === 'rustic';
@@ -269,10 +272,12 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
   // ============ TEMA RÚSTICO ============
   if (isRustic) {
     const { nameFontSize, surnamesFontSize } = getRusticFontSizes();
+    // Ancho total del couple node: más compacto en modo compacto
+    const coupleWidth = compactMode ? 'w-[150px]' : 'w-[180px]';
     
     return (
       <div
-        className="rustic-couple-node relative flex items-start justify-center cursor-pointer py-1 px-1 w-[180px]"
+        className={`rustic-couple-node relative flex items-start justify-center cursor-pointer py-1 px-1 ${coupleWidth}`}
       >
         <Handle
           type="target"
@@ -295,7 +300,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
           style={{ left: '50%' }}
         />
 
-        <PersonAvatar person={person1} onClick={() => setFocusId(person1.id)} isFocus={isFocus1} compact={isMobile} isRustic={true} textCase={textCase} nameFontSize={nameFontSize} surnamesFontSize={surnamesFontSize} />
+        <PersonAvatar person={person1} onClick={() => setFocusId(person1.id)} isFocus={isFocus1} compact={compactMode || isMobile} isRustic={true} textCase={textCase} nameFontSize={nameFontSize} surnamesFontSize={surnamesFontSize} />
 
         {/* Símbolo de anillos de boda compacto */}
         <div className="flex items-center justify-center" style={{ minWidth: '16px', marginTop: `${nameFontSize}px` }}>
@@ -304,7 +309,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
           </svg>
         </div>
 
-        <PersonAvatar person={person2} onClick={() => setFocusId(person2.id)} isFocus={isFocus2} compact={isMobile} isRustic={true} textCase={textCase} nameFontSize={nameFontSize} surnamesFontSize={surnamesFontSize} />
+        <PersonAvatar person={person2} onClick={() => setFocusId(person2.id)} isFocus={isFocus2} compact={compactMode || isMobile} isRustic={true} textCase={textCase} nameFontSize={nameFontSize} surnamesFontSize={surnamesFontSize} />
       </div>
     );
   }

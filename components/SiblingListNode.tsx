@@ -72,7 +72,7 @@ export const SiblingListNode: React.FC<SiblingListNodeProps> = ({ data }) => {
       {/* Lista de nombres - estilo compacto */}
       <div 
         className="flex flex-col items-center"
-        style={{ padding: isRustic ? '4px 2px' : '6px' }}
+        style={{ padding: isRustic ? '2px 1px' : '4px' }}
       >
         {siblings.map((sib, index) => {
           const isFocused = sib.id === focusId;
@@ -91,15 +91,15 @@ export const SiblingListNode: React.FC<SiblingListNodeProps> = ({ data }) => {
                   }
                 `}
                 style={{
-                  padding: '0px 2px',
+                  padding: '0px 1px',
                 }}
               >
                 <span
                   className="node-name whitespace-nowrap"
                   style={{
-                    fontSize: '10px',
+                    fontSize: '9px',
                     fontWeight: isFocused ? 700 : 600,
-                    letterSpacing: isRustic ? '0.5px' : undefined,
+                    letterSpacing: isRustic ? '0.3px' : undefined,
                     color: isRustic ? undefined : 'var(--app-text)',
                   }}
                 >
