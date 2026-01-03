@@ -40,7 +40,7 @@ export const HomeButton: React.FC = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setFocusId('')}
-            className="fixed top-4 left-4 z-50 w-12 h-12 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 backdrop-blur-md"
+            className="fixed top-2 sm:top-4 left-2 sm:left-4 z-50 w-9 h-9 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl overflow-hidden shadow-xl sm:shadow-2xl border border-white/20 sm:border-2 backdrop-blur-md"
             title="Ir al inicio / Vista general"
         >
             <LogoSVG />

@@ -216,7 +216,7 @@ export const SettingsMenu: React.FC = () => {
           borderColor: 'var(--card-border)',
           color: 'var(--app-text)'
         }}
-        className="fixed top-4 right-4 z-[60] p-3 rounded-xl 
+        className="fixed top-2 sm:top-4 right-2 sm:right-4 z-[60] p-2 sm:p-3 rounded-lg sm:rounded-xl 
           backdrop-blur-md border
           hover:opacity-90
           shadow-lg
@@ -270,13 +270,13 @@ export const SettingsMenu: React.FC = () => {
                 background: 'var(--menu-bg)',
                 borderColor: 'var(--menu-border)',
               }}
-              className="fixed top-16 right-4 z-[60] backdrop-blur-xl rounded-2xl p-3 shadow-2xl border min-w-[200px]"
+              className="fixed top-12 sm:top-16 right-2 sm:right-4 z-[60] backdrop-blur-xl rounded-xl sm:rounded-2xl p-2 sm:p-3 shadow-2xl border min-w-[160px] sm:min-w-[200px]"
             >
-              <div style={{ color: 'var(--app-text-muted)' }} className="text-[10px] uppercase tracking-widest font-semibold mb-2 px-2">
+              <div style={{ color: 'var(--app-text-muted)' }} className="text-[9px] sm:text-[10px] uppercase tracking-widest font-semibold mb-1.5 sm:mb-2 px-1.5 sm:px-2">
                 Ajustes
               </div>
               
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-0.5 sm:gap-1">
                 {menuItems.filter(item => item.show).map((item) => (
                   <motion.button
                     key={item.id}
@@ -284,12 +284,14 @@ export const SettingsMenu: React.FC = () => {
                     whileTap={{ scale: 0.98 }}
                     onClick={item.onClick}
                     style={{ color: 'var(--app-text)' }}
-                    className="flex items-center gap-3 p-2 rounded-xl transition-colors hover:bg-white/10 w-full text-left"
+                    className="flex items-center gap-2 sm:gap-3 p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-colors hover:bg-white/10 w-full text-left"
                   >
-                    <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center text-white shadow-md`}>
-                      {item.icon}
+                    <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-md sm:rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center text-white shadow-md`}>
+                      <div className="scale-75 sm:scale-100">
+                        {item.icon}
+                      </div>
                     </div>
-                    <span className="text-sm font-medium">{item.label}</span>
+                    <span className="text-xs sm:text-sm font-medium">{item.label}</span>
                   </motion.button>
                 ))}
               </div>

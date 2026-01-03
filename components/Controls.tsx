@@ -302,8 +302,8 @@ export const Controls: React.FC = () => {
     <>
       {/* Top Bar: Search */}
       {people.length > 0 && (
-        <div className="fixed top-0 left-0 right-0 p-2 sm:p-4 z-50 flex justify-center pointer-events-none">
-          <div className="relative pointer-events-auto w-full max-w-xs sm:max-w-md">
+        <div className="fixed top-0 left-0 right-0 p-1.5 sm:p-4 z-50 flex justify-center pointer-events-none">
+          <div className="relative pointer-events-auto w-full max-w-[200px] sm:max-w-md mr-10 sm:mr-0">
             <div
               style={{
                 background: 'var(--card-bg)',
@@ -311,21 +311,21 @@ export const Controls: React.FC = () => {
               }}
               className={`
           flex items-center 
-          backdrop-blur-xl rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 border
+          backdrop-blur-xl rounded-lg sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-3 border
           shadow-lg
           transition-all duration-300 ease-out
           ${isSearchFocused ? 'ring-2' : 'hover:opacity-95'}
         `}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
                 style={{ color: isSearchFocused ? 'var(--accent-highlight)' : 'var(--app-text-subtle)' }}
-                className="w-4 h-4 mr-2 sm:mr-3 flex-shrink-0 transition-colors">
+                className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-3 flex-shrink-0 transition-colors">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
               </svg>
               <input
                 type="text"
                 placeholder="Buscar en el linaje..."
                 style={{ color: 'var(--app-text)' }}
-                className="bg-transparent w-full focus:outline-none text-sm placeholder-opacity-60"
+                className="bg-transparent w-full focus:outline-none text-xs sm:text-sm placeholder-opacity-60"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value.toUpperCase())}
                 onFocus={() => setIsSearchFocused(true)}
@@ -337,14 +337,14 @@ export const Controls: React.FC = () => {
                 title={viewMode === 'tree' ? 'Cambiar a vista lista' : 'Cambiar a vista mapa'}
                 onClick={() => setViewMode(viewMode === 'tree' ? 'list' : 'tree')}
                 style={{ color: 'var(--app-text-subtle)' }}
-                className="ml-2 p-1.5 rounded-lg hover:opacity-70 transition-colors"
+                className="ml-1.5 sm:ml-2 p-1 sm:p-1.5 rounded-md sm:rounded-lg hover:opacity-70 transition-colors"
               >
                 {viewMode === 'tree' ? (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M10 14h10M10 18h10M4 14h4v4H4v-4z" />
                   </svg>
                 )}
@@ -354,9 +354,9 @@ export const Controls: React.FC = () => {
                 <button
                   onClick={() => setSearchTerm('')}
                   style={{ color: 'var(--app-text-subtle)' }}
-                  className="hover:opacity-70 transition-colors"
+                  className="hover:opacity-70 transition-colors ml-1"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>

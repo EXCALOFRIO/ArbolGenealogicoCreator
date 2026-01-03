@@ -11,6 +11,7 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
   const focusId = useFamilyStore(state => state.focusId);
   const visualTheme = useFamilyStore(state => state.visualTheme);
   const textCase = useFamilyStore(state => state.textCase);
+  const compactMode = useFamilyStore(state => state.compactMode);
   const people = useFamilyStore(state => state.people);
   const isMobile = useIsMobile();
   const colors = getGroupColor(data.surnames);
@@ -111,6 +112,10 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
   // ============ TEMA RÚSTICO ============
   if (isRustic) {
     const { nameFontSize, surnamesFontSize } = getRusticFontSizes();
+    // Tamaños ajustados para móvil - más grandes porque hay espacio
+    const nodeWidth = isMobile ? 'w-[70px]' : (compactMode ? 'w-[80px]' : 'w-[100px]');
+    const adjustedNameSize = isMobile ? Math.max(8, nameFontSize) : (compactMode ? Math.max(6, nameFontSize - 2) : nameFontSize);
+    const adjustedSurnamesSize = isMobile ? Math.max(7, surnamesFontSize) : (compactMode ? Math.max(5, surnamesFontSize - 2) : surnamesFontSize);
     
     return (
       <div
@@ -118,7 +123,7 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
           e.stopPropagation();
           setFocusId(data.id);
         }}
-        className="rustic-node relative flex flex-col items-center justify-center cursor-pointer py-1.5 px-2 w-[100px]"
+        className={`rustic-node relative flex flex-col items-center justify-center cursor-pointer ${isMobile ? 'py-1.5 px-1' : (compactMode ? 'py-1 px-1' : 'py-1.5 px-2')} ${nodeWidth}`}
       >
         <Handle type="target" position={Position.Top} className="bg-transparent! border-none! w-full! h-3! top-0!" />
         <Handle type="source" position={Position.Bottom} className="bg-transparent! border-none! w-full! h-3! bottom-0!" />
@@ -128,13 +133,13 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
         {/* Nombre */}
         <h3 
           className="node-name text-center whitespace-nowrap"
-          style={{ fontSize: `${nameFontSize}px` }}
+          style={{ fontSize: `${adjustedNameSize}px` }}
         >
           {formatText(data.name)}
         </h3>
         
         {/* Línea divisoria simple */}
-        <div className="rustic-divider w-full h-px my-1" />
+        <div className="rustic-divider w-full h-px my-0.5" />
         
         {/* Apellidos - cada uno en su línea */}
         <div className="flex flex-col items-center">
@@ -142,7 +147,7 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
             <p 
               key={idx}
               className="node-surnames text-center whitespace-nowrap leading-tight"
-              style={{ fontSize: `${surnamesFontSize}px` }}
+              style={{ fontSize: `${adjustedSurnamesSize}px` }}
             >
               {formatText(surname)}
             </p>
@@ -153,8 +158,12 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
   }
 
   // ============ TEMA MODERNO (ORIGINAL) ============
-  // Móvil: tarjeta compacta vertical (más estrecha y alta)
+  // Móvil: círculo pequeño con nombre+apellido dentro (sin texto debajo)
   if (isMobile) {
+    // Obtener solo el primer nombre y primer apellido para que quepa en el círculo
+    const getShortName = (name: string) => name.split(' ')[0];
+    const getShortSurname = (surnames: string) => surnames.split(' ')[0];
+    
     return (
       <div
         onClick={(e) => {
@@ -164,12 +173,12 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
         style={{
           background: 'var(--card-bg)',
           borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--card-border)',
-          boxShadow: isFocus ? '0 0 20px rgba(104, 144, 156, 0.3)' : undefined
+          boxShadow: isFocus ? '0 0 15px rgba(104, 144, 156, 0.3)' : undefined
         }}
         className={`
-          relative flex flex-col items-center p-1.5 rounded-xl cursor-pointer 
-          transition-all duration-300 ease-out w-[80px] border
-          ${isFocus ? 'ring-2' : 'hover:shadow-md'}
+          relative flex flex-col items-center py-1 px-0.5 rounded-lg cursor-pointer 
+          transition-all duration-300 ease-out w-[46px] border
+          ${isFocus ? 'ring-1' : 'hover:shadow-md'}
           backdrop-blur-xl
         `}
       >
@@ -182,44 +191,28 @@ export const PersonNode = memo(({ data }: { data: RenderNode }) => {
           <div
             style={{
               borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
-              boxShadow: isFocus ? '0 0 10px rgba(104, 144, 156, 0.4)' : undefined
+              boxShadow: isFocus ? '0 0 8px rgba(104, 144, 156, 0.4)' : undefined
             }}
-            className="w-8 h-8 rounded-full overflow-hidden shadow-sm ring-1 transition-all duration-200"
+            className="w-9 h-9 rounded-full overflow-hidden shadow-sm ring-1 transition-all duration-200"
           >
             <img src={data.photo} alt="" className="w-full h-full object-cover" />
           </div>
         ) : (
           <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-[8px] font-bold shadow-sm ${colors.bg} ${colors.text} ring-1 transition-all duration-200`}
+            className={`w-9 h-9 rounded-full flex flex-col items-center justify-center shadow-sm ${colors.bg} ring-1 transition-all duration-200`}
             style={{
               borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
-              boxShadow: isFocus ? '0 0 10px rgba(104, 144, 156, 0.4)' : undefined
+              boxShadow: isFocus ? '0 0 8px rgba(104, 144, 156, 0.4)' : undefined
             }}
           >
-            {initials}
+            <span className={`text-[6px] font-bold leading-none text-center ${colors.text}`}>
+              {formatText(getShortName(data.name))}
+            </span>
+            <span className={`text-[5px] font-medium leading-none text-center ${colors.text} opacity-80`}>
+              {formatText(getShortSurname(data.surnames))}
+            </span>
           </div>
         )}
-
-        <span
-          style={{ color: isFocus ? 'var(--accent-highlight)' : 'var(--app-text-subtle)' }}
-          className="text-[7px] font-semibold tracking-wide mt-0.5"
-        >
-          {label}
-        </span>
-        <div className="flex flex-col items-center mt-0.5 w-full px-0.5">
-          <h3 
-            style={{ color: 'var(--app-text)' }} 
-            className="text-[9px] font-semibold leading-tight text-center wrap-break-word w-full"
-          >
-            {formatText(data.name)}
-          </h3>
-          <p 
-            style={{ color: 'var(--app-text-muted)' }} 
-            className="text-[8px] text-center leading-tight mt-0.5 wrap-break-word w-full"
-          >
-            {formatText(data.surnames)}
-          </p>
-        </div>
       </div>
     );
   }

@@ -16,6 +16,7 @@ export const SiblingListNode: React.FC<SiblingListNodeProps> = ({ data }) => {
   const { siblings, width } = data;
   
   const isRustic = visualTheme === 'rustic';
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
   
   // Usar el ancho del padre o un valor por defecto
   const nodeWidth = width || 200;
@@ -72,7 +73,7 @@ export const SiblingListNode: React.FC<SiblingListNodeProps> = ({ data }) => {
       {/* Lista de nombres - estilo compacto */}
       <div 
         className="flex flex-col items-center"
-        style={{ padding: isRustic ? '2px 1px' : '4px' }}
+        style={{ padding: isRustic ? (isMobile ? '1px 0px' : '2px 1px') : (isMobile ? '2px' : '4px') }}
       >
         {siblings.map((sib, index) => {
           const isFocused = sib.id === focusId;
@@ -97,7 +98,7 @@ export const SiblingListNode: React.FC<SiblingListNodeProps> = ({ data }) => {
                 <span
                   className="node-name whitespace-nowrap"
                   style={{
-                    fontSize: '9px',
+                    fontSize: isMobile ? '7px' : '9px',
                     fontWeight: isFocused ? 700 : 600,
                     letterSpacing: isRustic ? '0.3px' : undefined,
                     color: isRustic ? undefined : 'var(--app-text)',

@@ -185,26 +185,29 @@ export const FamilyTree: React.FC = () => {
     const familyById = new Map<string, any>();
     familyNodes.forEach(p => familyById.set(p.id, p));
 
-    // Tamaños - más compactos en modo compacto
-    const COUPLE_WIDTH = compactMode 
-      ? (isMobile ? 130 : 150) 
-      : (isMobile ? 150 : 180);
-    const SINGLE_WIDTH = compactMode 
-      ? (isMobile ? 65 : 80) 
-      : (isMobile ? 75 : 90);
-    const SIBLING_LIST_WIDTH = compactMode 
-      ? (isMobile ? 70 : 85) 
-      : (isMobile ? 80 : 100);
-    const SIBLING_GAP = compactMode 
-      ? (isMobile ? 6 : 10) 
-      : (isMobile ? 10 : 16);
-    const COUSIN_GAP = compactMode 
-      ? (isMobile ? 15 : 25) 
-      : (isMobile ? 30 : 50);
-    // Rústico más compacto, moderno más separado
-    const VERTICAL_SPACING = compactMode
-      ? (isRusticVisual ? (isMobile ? 100 : 120) : (isMobile ? 120 : 140))
-      : (isRusticVisual ? (isMobile ? 130 : 160) : (isMobile ? 160 : 200));
+    // Tamaños - móvil usa layout VERTICAL para parejas (60px ancho)
+    // En móvil las parejas son verticales, así que el ancho es igual al de una persona
+    const COUPLE_WIDTH = isMobile 
+      ? (isRusticVisual ? 75 : 50)  // Rústico más ancho para que quepa el texto
+      : (compactMode ? 150 : 180);
+    const SINGLE_WIDTH = isMobile 
+      ? (isRusticVisual ? 72 : 48)  // Rústico más ancho para que quepa el texto
+      : (compactMode ? 80 : 90);
+    const SIBLING_LIST_WIDTH = isMobile 
+      ? 50  // Más pequeño en móvil
+      : (compactMode ? 85 : 100);
+    const SIBLING_GAP = isMobile 
+      ? 8   // Gap pequeño en móvil
+      : (compactMode ? 10 : 16);
+    const COUSIN_GAP = isMobile 
+      ? 15  // Gap pequeño en móvil
+      : (compactMode ? 25 : 50);
+    // Móvil necesita más espacio vertical porque las parejas son verticales
+    const VERTICAL_SPACING = isMobile
+      ? (isRusticVisual ? 170 : 130)  // Más espacio para evitar solapamiento
+      : (compactMode 
+          ? (isRusticVisual ? 120 : 140)
+          : (isRusticVisual ? 160 : 200));
 
     // Límites de generaciones para evitar solapamiento
     const MAX_ANCESTOR_DEPTH = 3;
@@ -257,10 +260,20 @@ export const FamilyTree: React.FC = () => {
 
     const getSourceBottomY = (sourceNodeId: string) => {
       const pos = nodePositions.get(sourceNodeId);
-      // Altura del nodo - más compacto en modo compacto y rústico
-      const NODE_HEIGHT = compactMode 
-        ? (isRusticVisual ? 80 : 100) 
-        : (isRusticVisual ? 100 : 140);
+      const node = getNodeById(sourceNodeId);
+      // Altura del nodo - móvil usa layout vertical (más alto para parejas)
+      let NODE_HEIGHT: number;
+      if (isMobile) {
+        // En móvil moderno: matrimonios verticales ocupan más espacio
+        // En móvil rústico: layout vertical tradicional
+        NODE_HEIGHT = node?.type === 'couple' 
+          ? (isRusticVisual ? 135 : 100)  // Parejas: más alto para evitar solapamiento
+          : (isRusticVisual ? 85 : 60);   // Personas: más alto
+      } else {
+        NODE_HEIGHT = compactMode 
+          ? (isRusticVisual ? 80 : 100) 
+          : (isRusticVisual ? 100 : 140);
+      }
       return pos ? pos.y + NODE_HEIGHT : 0;
     };
 
@@ -1218,29 +1231,32 @@ export const FamilyTree: React.FC = () => {
         proOptions={{ hideAttribution: true }}
       >
         <FlowContent nodes={nodes} edges={edges} focusId={focusId} />
-        <Background color="var(--dot-color)" gap={40} size={1} />
-        <MiniMap
-          position="bottom-right"
-          maskColor="transparent"
-          style={{
-            background: 'var(--card-bg)',
-            borderRadius: '16px',
-            border: '1px solid var(--card-border)',
-            overflow: 'hidden'
-          }}
-          nodeColor={(n: any) => {
-            if (n.type === 'background') return 'transparent';
-            if (n.id === focusId) return '#3b82f6';
-            return 'rgba(255, 255, 255, 0.2)';
-          }}
-          nodeStrokeWidth={3}
-          zoomable
-          pannable
-        />
+        <Background color="var(--dot-color)" gap={isMobile ? 30 : 40} size={1} />
+        {/* MiniMap solo en desktop */}
+        {!isMobile && (
+          <MiniMap
+            position="bottom-right"
+            maskColor="transparent"
+            style={{
+              background: 'var(--card-bg)',
+              borderRadius: '16px',
+              border: '1px solid var(--card-border)',
+              overflow: 'hidden'
+            }}
+            nodeColor={(n: any) => {
+              if (n.type === 'background') return 'transparent';
+              if (n.id === focusId) return '#3b82f6';
+              return 'rgba(255, 255, 255, 0.2)';
+            }}
+            nodeStrokeWidth={3}
+            zoomable
+            pannable
+          />
+        )}
       </ReactFlow>
 
-      {/* Botones de zoom/centrar */}
-      <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-10">
+      {/* Botones de zoom/centrar - más pequeños en móvil */}
+      <div className={`absolute ${isMobile ? 'bottom-2 left-2' : 'bottom-4 left-4'} flex flex-col gap-1.5 z-10`}>
         <button
           onClick={() => zoomIn()}
           style={{
@@ -1248,10 +1264,10 @@ export const FamilyTree: React.FC = () => {
             borderColor: 'var(--card-border)',
             color: 'var(--app-text)'
           }}
-          className="p-2.5 rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80"
+          className={`${isMobile ? 'p-1.5' : 'p-2.5'} rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80`}
           title="Acercar"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className={isMobile ? 'w-4 h-4' : 'w-5 h-5'} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
           </svg>
         </button>
@@ -1262,10 +1278,10 @@ export const FamilyTree: React.FC = () => {
             borderColor: 'var(--card-border)',
             color: 'var(--app-text)'
           }}
-          className="p-2.5 rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80"
+          className={`${isMobile ? 'p-1.5' : 'p-2.5'} rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80`}
           title="Alejar"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className={isMobile ? 'w-4 h-4' : 'w-5 h-5'} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M18 12H6" />
           </svg>
         </button>
@@ -1276,10 +1292,10 @@ export const FamilyTree: React.FC = () => {
             borderColor: 'var(--card-border)',
             color: 'var(--app-text)'
           }}
-          className="p-2.5 rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80"
+          className={`${isMobile ? 'p-1.5' : 'p-2.5'} rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80`}
           title="Centrar todo"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className={isMobile ? 'w-4 h-4' : 'w-5 h-5'} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
           </svg>
         </button>

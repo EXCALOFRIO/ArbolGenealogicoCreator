@@ -82,17 +82,21 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
 
   // ============ ESTILO RÚSTICO ============
   if (isRustic) {
-    // Ancho dinámico según modo compacto
-    const avatarWidth = compact ? 'w-[70px]' : 'w-[85px]';
+    // Ancho dinámico según modo compacto - más pequeño en móvil
+    const isMobileCompact = compact && typeof window !== 'undefined' && window.innerWidth < 640;
+    const avatarWidth = isMobileCompact ? 'w-[68px]' : (compact ? 'w-[70px]' : 'w-[85px]');
+    // Tamaños más grandes para móvil ya que hay espacio en layout vertical
+    const adjustedNameSize = isMobileCompact ? Math.max(9, nameFontSize) : nameFontSize;
+    const adjustedSurnamesSize = isMobileCompact ? Math.max(8, surnamesFontSize) : surnamesFontSize;
     return (
       <div
         onClick={(e) => { e.stopPropagation(); onClick(); }}
-        className={`flex flex-1 min-w-0 flex-col items-center justify-start cursor-pointer transition-all duration-200 py-1 px-0.5 hover:opacity-80 ${avatarWidth}`}
+        className={`flex flex-1 min-w-0 flex-col items-center justify-start cursor-pointer transition-all duration-200 py-1.5 px-1 hover:opacity-80 ${avatarWidth}`}
       >
         {/* Nombre */}
         <h3 
           className="node-name text-center whitespace-nowrap"
-          style={{ fontSize: `${nameFontSize}px` }}
+          style={{ fontSize: `${adjustedNameSize}px` }}
         >
           {formatText(person.name)}
         </h3>
@@ -108,7 +112,7 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
             <p 
               key={idx}
               className="node-surnames text-center whitespace-nowrap leading-tight"
-              style={{ fontSize: `${surnamesFontSize}px` }}
+              style={{ fontSize: `${adjustedSurnamesSize}px` }}
             >
               {formatText(surname)}
             </p>
@@ -119,8 +123,66 @@ const PersonAvatar = ({ person, onClick, isFocus, compact = false, isRustic = fa
   }
 
   // ============ ESTILO MODERNO ============
-  // Versión compacta para móvil
+  // Versión compacta para móvil - detectar si realmente estamos en móvil
+  const isMobileView = typeof window !== 'undefined' && window.innerWidth < 640;
+  
   if (compact) {
+    // En móvil real: mucho más pequeño para layout vertical
+    if (isMobileView) {
+      // Usar tamaños de fuente pasados o defaults más grandes
+      const mobileNameSize = Math.max(8, nameFontSize);
+      const mobileSurnamesSize = Math.max(7, surnamesFontSize);
+      return (
+        <div
+          onClick={(e) => { e.stopPropagation(); onClick(); }}
+          style={{
+            background: isFocus ? 'var(--background-200)' : 'transparent'
+          }}
+          className={`
+            flex flex-1 min-w-0 flex-col items-center p-1 rounded cursor-pointer transition-all duration-200
+            ${isFocus ? 'scale-105' : 'hover:opacity-80'}
+          `}
+        >
+          {person.photo ? (
+            <div
+              style={{
+                borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
+                boxShadow: isFocus ? '0 0 6px rgba(104, 144, 156, 0.4)' : undefined
+              }}
+              className="w-6 h-6 rounded-full overflow-hidden shadow-sm ring-1 transition-all duration-200"
+            >
+              <img src={person.photo} alt="" className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-[7px] font-bold shadow-sm ${colors.bg} ${colors.text} ring-1 transition-all duration-200`}
+              style={{
+                borderColor: isFocus ? 'var(--accent-highlight)' : 'var(--primary-400)',
+                boxShadow: isFocus ? '0 0 6px rgba(104, 144, 156, 0.4)' : undefined
+              }}
+            >
+              {initials}
+            </div>
+          )}
+          <div className="flex flex-col items-center w-full mt-0.5">
+            <h3 
+              style={{ color: 'var(--app-text)', fontSize: `${mobileNameSize}px` }} 
+              className="font-semibold leading-tight text-center wrap-break-word w-full"
+            >
+              {formatText(person.name)}
+            </h3>
+            <p 
+              style={{ color: 'var(--app-text-muted)', fontSize: `${mobileSurnamesSize}px` }} 
+              className="text-center leading-tight wrap-break-word w-full"
+            >
+              {formatText(person.surnames)}
+            </p>
+          </div>
+        </div>
+      );
+    }
+    
+    // Desktop compact
     return (
       <div
         onClick={(e) => { e.stopPropagation(); onClick(); }}
@@ -272,12 +334,55 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
   // ============ TEMA RÚSTICO ============
   if (isRustic) {
     const { nameFontSize, surnamesFontSize } = getRusticFontSizes();
-    // Ancho total del couple node: más compacto en modo compacto
+    
+    // En móvil: layout VERTICAL (persona arriba, persona abajo)
+    if (isMobile) {
+      return (
+        <div
+          className="rustic-couple-node relative flex flex-col items-center justify-start cursor-pointer py-1.5 px-1.5 w-[75px]"
+        >
+          <Handle
+            type="target"
+            position={Position.Top}
+            id={`top-${person1.id}`}
+            className="bg-transparent! border-none!"
+            style={{ left: '50%' }}
+          />
+          <Handle
+            type="target"
+            position={Position.Top}
+            id={`top-${person2.id}`}
+            className="bg-transparent! border-none!"
+            style={{ left: '50%' }}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            className="bg-transparent! border-none!"
+            style={{ left: '50%' }}
+          />
+
+          <PersonAvatar person={person1} onClick={() => setFocusId(person1.id)} isFocus={isFocus1} compact={true} isRustic={true} textCase={textCase} nameFontSize={nameFontSize} surnamesFontSize={surnamesFontSize} />
+
+          {/* Símbolo de anillos - más visible */}
+          <div className="flex items-center justify-center my-1">
+            <svg width="16" height="10" viewBox="0 0 24 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="8" cy="7" rx="6" ry="5" stroke="#2c1810" strokeWidth="1.5" fill="none"/>
+              <ellipse cx="16" cy="7" rx="6" ry="5" stroke="#2c1810" strokeWidth="1.5" fill="none"/>
+            </svg>
+          </div>
+
+          <PersonAvatar person={person2} onClick={() => setFocusId(person2.id)} isFocus={isFocus2} compact={true} isRustic={true} textCase={textCase} nameFontSize={nameFontSize} surnamesFontSize={surnamesFontSize} />
+        </div>
+      );
+    }
+    
+    // Desktop: layout horizontal normal
     const coupleWidth = compactMode ? 'w-[150px]' : 'w-[180px]';
     
     return (
       <div
-        className={`rustic-couple-node relative flex items-start justify-center cursor-pointer py-1 px-1 ${coupleWidth}`}
+        className={`rustic-couple-node relative flex items-start justify-center cursor-pointer py-0.5 px-0.5 ${coupleWidth}`}
       >
         <Handle
           type="target"
@@ -315,8 +420,136 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
   }
 
   // ============ TEMA MODERNO (ORIGINAL) ============
-  // Versión compacta para móvil o modo compacto
-  if (isMobile || compactMode) {
+  // En móvil: layout VERTICAL con círculos pequeños que contienen nombre+apellido
+  if (isMobile) {
+    // Función para formatear texto según textCase
+    const formatName = (text: string) => {
+      if (textCase === 'uppercase') return text.toUpperCase();
+      return text.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    };
+    
+    // Obtener solo el primer nombre y primer apellido para que quepa en el círculo
+    const getShortName = (name: string) => name.split(' ')[0];
+    const getShortSurname = (surnames: string) => surnames.split(' ')[0];
+    
+    return (
+      <div
+        style={{
+          background: 'var(--card-bg)',
+          borderColor: hasAnyFocus ? 'var(--accent-highlight)' : 'var(--card-border)',
+          boxShadow: hasAnyFocus ? '0 0 15px rgba(104, 144, 156, 0.3)' : undefined
+        }}
+        className={`
+          relative flex flex-col w-[48px] items-center gap-0.5 rounded-lg py-1 px-0.5 border
+          transition-all duration-300 ease-out
+          ${hasAnyFocus ? 'ring-1' : 'hover:shadow-md'}
+          backdrop-blur-xl
+        `}
+      >
+        <Handle
+          type="target"
+          position={Position.Top}
+          id={`top-${person1.id}`}
+          className="bg-transparent! border-none!"
+          style={{ left: '50%' }}
+        />
+        <Handle
+          type="target"
+          position={Position.Top}
+          id={`top-${person2.id}`}
+          className="bg-transparent! border-none!"
+          style={{ left: '50%' }}
+        />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="bg-transparent! border-none!"
+          style={{ left: '50%' }}
+        />
+
+        {/* Persona 1 - Círculo pequeño con nombre y apellido dentro */}
+        <div 
+          onClick={(e) => { e.stopPropagation(); setFocusId(person1.id); }}
+          className="cursor-pointer"
+        >
+          {person1.photo ? (
+            <div
+              style={{
+                borderColor: isFocus1 ? 'var(--accent-highlight)' : 'var(--primary-400)',
+                boxShadow: isFocus1 ? '0 0 6px rgba(104, 144, 156, 0.4)' : undefined
+              }}
+              className="w-10 h-10 rounded-full overflow-hidden shadow-sm ring-1"
+            >
+              <img src={person1.photo} alt="" className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div
+              className={`w-10 h-10 rounded-full flex flex-col items-center justify-center shadow-sm ${getGroupColor(person1.surnames).bg} ring-1`}
+              style={{
+                borderColor: isFocus1 ? 'var(--accent-highlight)' : 'var(--primary-400)',
+                boxShadow: isFocus1 ? '0 0 6px rgba(104, 144, 156, 0.4)' : undefined
+              }}
+            >
+              <span className={`text-[6px] font-bold leading-none text-center ${getGroupColor(person1.surnames).text}`}>
+                {formatName(getShortName(person1.name))}
+              </span>
+              <span className={`text-[5px] font-medium leading-none text-center ${getGroupColor(person1.surnames).text} opacity-80`}>
+                {formatName(getShortSurname(person1.surnames))}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Corazón mini */}
+        <div className="flex items-center justify-center z-10 -my-0.5">
+          <div
+            style={{ background: 'var(--heart-bg)' }}
+            className="w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm"
+          >
+            <svg style={{ color: 'var(--heart-color)' }} className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Persona 2 - Círculo pequeño con nombre y apellido dentro */}
+        <div 
+          onClick={(e) => { e.stopPropagation(); setFocusId(person2.id); }}
+          className="cursor-pointer"
+        >
+          {person2.photo ? (
+            <div
+              style={{
+                borderColor: isFocus2 ? 'var(--accent-highlight)' : 'var(--primary-400)',
+                boxShadow: isFocus2 ? '0 0 6px rgba(104, 144, 156, 0.4)' : undefined
+              }}
+              className="w-10 h-10 rounded-full overflow-hidden shadow-sm ring-1"
+            >
+              <img src={person2.photo} alt="" className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div
+              className={`w-10 h-10 rounded-full flex flex-col items-center justify-center shadow-sm ${getGroupColor(person2.surnames).bg} ring-1`}
+              style={{
+                borderColor: isFocus2 ? 'var(--accent-highlight)' : 'var(--primary-400)',
+                boxShadow: isFocus2 ? '0 0 6px rgba(104, 144, 156, 0.4)' : undefined
+              }}
+            >
+              <span className={`text-[6px] font-bold leading-none text-center ${getGroupColor(person2.surnames).text}`}>
+                {formatName(getShortName(person2.name))}
+              </span>
+              <span className={`text-[5px] font-medium leading-none text-center ${getGroupColor(person2.surnames).text} opacity-80`}>
+                {formatName(getShortSurname(person2.surnames))}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  
+  // Desktop: modo compacto horizontal
+  if (compactMode) {
     return (
       <div
         style={{

@@ -144,7 +144,7 @@ export const ActionMenu: React.FC = () => {
               background: 'var(--card-bg)',
               borderColor: 'var(--card-border)'
             }}
-            className="relative backdrop-blur-xl border rounded-3xl p-6 sm:p-8 shadow-2xl pointer-events-auto text-center w-full max-w-sm sm:max-w-md overflow-hidden"
+            className="relative backdrop-blur-xl border rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-2xl pointer-events-auto text-center w-full max-w-xs sm:max-w-md overflow-hidden"
           >
             {/* Decorative gradient line */}
             <div style={{ background: 'var(--gradient-secondary-accent)' }} className="absolute top-0 left-0 right-0 h-1" />
@@ -159,7 +159,7 @@ export const ActionMenu: React.FC = () => {
                 borderColor: 'transparent',
                 color: 'var(--accent-highlight)'
               }}
-              className="w-24 h-24 sm:w-32 sm:h-32 flex items-center justify-center mx-auto mb-4 sm:mb-6 overflow-hidden rounded-3xl shadow-xl"
+              className="w-16 h-16 sm:w-32 sm:h-32 flex items-center justify-center mx-auto mb-3 sm:mb-6 overflow-hidden rounded-2xl sm:rounded-3xl shadow-xl"
             >
               <TreeIcon />
             </motion.div>
@@ -169,7 +169,7 @@ export const ActionMenu: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
               style={{ color: 'var(--app-text)' }}
-              className="text-2xl sm:text-3xl font-bold mb-2"
+              className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2"
             >
               Árbol Genealógico Creator
             </motion.h1>
@@ -179,7 +179,7 @@ export const ActionMenu: React.FC = () => {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
               style={{ color: 'var(--app-text-muted)' }}
-              className="text-sm sm:text-base mb-6 sm:mb-8"
+              className="text-xs sm:text-base mb-4 sm:mb-8"
             >
               Construye tu árbol genealógico de forma visual e intuitiva
             </motion.p>
@@ -199,9 +199,9 @@ export const ActionMenu: React.FC = () => {
                     openAddModal('None');
                   }}
                   style={{ background: 'var(--secondary-500)' }}
-                  className="flex-1 py-4 sm:py-6 rounded-[24px] text-white font-black shadow-xl transition-all flex items-center justify-center gap-3 text-lg sm:text-xl hover:bg-secondary-600"
+                  className="flex-1 py-3 sm:py-6 rounded-[18px] sm:rounded-[24px] text-white font-bold sm:font-black shadow-lg sm:shadow-xl transition-all flex items-center justify-center gap-2 sm:gap-3 text-sm sm:text-xl hover:bg-secondary-600"
                 >
-                  <PlusIcon className="w-6 h-6" />
+                  <PlusIcon className="w-4 h-4 sm:w-6 sm:h-6" />
                   Nuevo Árbol
                 </motion.button>
 
@@ -214,7 +214,7 @@ export const ActionMenu: React.FC = () => {
                     borderColor: 'var(--button-secondary-border)',
                     color: 'var(--button-secondary-text)'
                   }}
-                  className="flex-1 py-4 sm:py-6 rounded-[24px] font-black transition-all flex items-center justify-center gap-3 border text-lg sm:text-xl hover:opacity-90 shadow-lg"
+                  className="flex-1 py-3 sm:py-6 rounded-[18px] sm:rounded-[24px] font-bold sm:font-black transition-all flex items-center justify-center gap-2 sm:gap-3 border text-sm sm:text-xl hover:opacity-90 shadow-md sm:shadow-lg"
                 >
                   <UploadIcon />
                   Importar
@@ -267,65 +267,57 @@ export const ActionMenu: React.FC = () => {
         onChange={onImportFile}
       />
 
-      {/* Mobile: Floating Action Button */}
-      <div className="sm:hidden fixed bottom-4 right-4 z-50">
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 20 }}
-              style={{
-                background: 'var(--menu-bg)',
-                borderColor: 'var(--menu-border)'
-              }}
-              className="absolute bottom-16 right-0 backdrop-blur-xl rounded-2xl p-3 shadow-2xl border min-w-[220px]"
-            >
-              <div style={{ color: 'var(--app-text-muted)' }} className="text-[10px] uppercase tracking-widest font-semibold mb-2 px-2">
-                {person.name}
-              </div>
-              <div className="grid grid-cols-4 gap-2 mb-3">
-                {addActions.map(action => (
-                  <button
-                    key={action.id}
-                    onClick={() => handleAction(action)}
-                    className="flex flex-col items-center gap-1 p-2 rounded-xl transition-colors active:scale-95 hover:opacity-80"
-                    style={{ background: 'transparent' }}
-                  >
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-lg`}>
-                      {action.icon}
-                    </div>
-                    <span style={{ color: 'var(--app-text-muted)' }} className="text-[9px]">{action.label}</span>
-                  </button>
-                ))}
-              </div>
-              <div style={{ borderColor: 'var(--menu-border)' }} className="border-t pt-2 grid grid-cols-4 gap-2">
-                {manageActions.map(action => (
-                  <button
-                    key={action.id}
-                    onClick={() => handleAction(action)}
-                    className="flex flex-col items-center gap-1 p-2 rounded-xl transition-colors active:scale-95 hover:opacity-80"
-                    style={{ background: 'transparent' }}
-                  >
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-lg`}>
-                      {action.icon}
-                    </div>
-                    <span style={{ color: 'var(--app-text-muted)' }} className="text-[9px]">{action.label}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setIsExpanded(!isExpanded)}
-          style={{ background: 'var(--gradient-secondary-accent)' }}
-          className={`w-16 h-16 rounded-2xl text-white shadow-lg flex items-center justify-center transition-transform duration-200 ${isExpanded ? 'rotate-45' : ''}`}
+      {/* Mobile: Bottom Mini Bar */}
+      <div className="sm:hidden fixed bottom-2 left-1/2 -translate-x-1/2 z-50">
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          style={{
+            background: 'var(--menu-bg)',
+            borderColor: 'var(--menu-border)'
+          }}
+          className="backdrop-blur-xl border rounded-2xl px-2 py-1.5 shadow-xl flex flex-col items-center gap-1"
         >
-          <PlusIcon className="w-8 h-8" />
-        </motion.button>
+          {/* Nombre de persona seleccionada */}
+          <div 
+            style={{ color: 'var(--app-text)' }} 
+            className="text-[9px] font-semibold truncate max-w-[200px] px-1"
+          >
+            {person.name} {person.surnames?.split(' ')[0]}
+          </div>
+          <div className="flex items-center gap-1">
+          {/* Add Actions */}
+          {addActions.map(action => (
+            <button
+              key={action.id}
+              onClick={() => handleAction(action)}
+              className="active:scale-[0.9] transition-transform"
+              title={action.label}
+            >
+              <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-sm`}>
+                {action.icon}
+              </div>
+            </button>
+          ))}
+
+          {/* Divider */}
+          <div className="w-px h-7 mx-0.5" style={{ background: 'var(--menu-border)' }} />
+
+          {/* Manage Actions */}
+          {manageActions.map(action => (
+            <button
+              key={action.id}
+              onClick={() => handleAction(action)}
+              className="active:scale-[0.9] transition-transform"
+              title={action.label}
+            >
+              <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-sm`}>
+                {action.icon}
+              </div>
+            </button>
+          ))}
+          </div>
+        </motion.div>
       </div>
 
       {/* Desktop: Bottom Bar */}
