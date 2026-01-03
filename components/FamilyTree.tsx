@@ -4,6 +4,7 @@ import { toPng } from 'html-to-image';
 import { useFamilyLogic } from '../hooks/useFamilyLogic';
 import { PersonNode } from './PersonNode';
 import { CoupleNode } from './CoupleNode';
+import { SiblingListNode } from './SiblingListNode';
 import { BranchEdge } from './BranchEdge';
 import { BranchLEdge } from './BranchLEdge';
 import { useFamilyStore } from '../store/familyStore';
@@ -25,6 +26,7 @@ const BackgroundNode = React.memo(({ data }: any) => {
 const nodeTypes = {
   person: PersonNode,
   couple: CoupleNode,
+  siblingList: SiblingListNode,
   background: BackgroundNode,
 };
 
@@ -69,7 +71,7 @@ const FlowContent: React.FC<{ nodes: Node[]; edges: Edge[]; focusId: string }> =
 
 export const FamilyTree: React.FC = () => {
   const familyNodes = useFamilyLogic();
-  const { focusId, viewRootId, theme, visualTheme, isExporting, setIsExporting } = useFamilyStore();
+  const { focusId, viewRootId, theme, visualTheme, compactMode, isExporting, setIsExporting } = useFamilyStore();
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   // Detectar móvil para ajustar tamaños
@@ -135,7 +137,7 @@ export const FamilyTree: React.FC = () => {
               backgroundColor: visualTheme === 'rustic' 
                 ? '#b8a67a' // Color base del pergamino
                 : (theme === 'dark' ? '#0e100a' : '#f4f5ef'),
-              pixelRatio: 6, // Calidad máxima para zoom extremo sin pérdida
+              pixelRatio: 3, // Calidad máxima para zoom extremo sin pérdida
               filter: (node) => {
                 // Ocultar elementos innecesarios en la foto
                 const exclusionClasses = [
@@ -184,11 +186,15 @@ export const FamilyTree: React.FC = () => {
     familyNodes.forEach(p => familyById.set(p.id, p));
 
     // Tamaños para DIN A4
-    const COUPLE_WIDTH = isMobile ? 160 : 200;
-    const SINGLE_WIDTH = isMobile ? 80 : 100;
-    const SIBLING_GAP = isMobile ? 12 : 20;
-    const COUSIN_GAP = isMobile ? 40 : 60;
-    const VERTICAL_SPACING = isMobile ? 140 : 180;
+    const COUPLE_WIDTH = isMobile ? 150 : 180;
+    const SINGLE_WIDTH = isMobile ? 75 : 90;
+    const SIBLING_LIST_WIDTH = isMobile ? 80 : 100; // Ancho para cajas de hijos compactas
+    const SIBLING_GAP = isMobile ? 10 : 16;
+    const COUSIN_GAP = isMobile ? 30 : 50;
+    // Rústico más compacto, moderno más separado
+    const VERTICAL_SPACING = isRusticVisual 
+      ? (isMobile ? 130 : 160)
+      : (isMobile ? 160 : 200);
 
     // Límites de generaciones para evitar solapamiento
     const MAX_ANCESTOR_DEPTH = 3;
@@ -208,6 +214,10 @@ export const FamilyTree: React.FC = () => {
     const getNodeWidth = (node: Node | undefined) => {
       if (!node) return SINGLE_WIDTH;
       if (node.type === 'couple') return COUPLE_WIDTH;
+      if (node.type === 'siblingList') {
+        // Usar el ancho dinámico si está definido
+        return (node.data as any)?.width || COUPLE_WIDTH;
+      }
       return SINGLE_WIDTH;
     };
 
@@ -237,8 +247,8 @@ export const FamilyTree: React.FC = () => {
 
     const getSourceBottomY = (sourceNodeId: string) => {
       const pos = nodePositions.get(sourceNodeId);
-      // En este árbol usamos una altura visual estable (~140) para colocar la barra.
-      const NODE_HEIGHT = 140;
+      // Altura del nodo - más compacto en rústico
+      const NODE_HEIGHT = isRusticVisual ? 100 : 140;
       return pos ? pos.y + NODE_HEIGHT : 0;
     };
 
@@ -264,7 +274,8 @@ export const FamilyTree: React.FC = () => {
 
       const childTopY = Math.min(...connections.map(c => getTargetTopY(c.targetNodeId)));
       const parentBottomY = getSourceBottomY(sourceNodeId);
-      const barY = (parentBottomY + childTopY) / 2;
+      // Centrar la barra exactamente en el medio entre el padre y los hijos
+      const barY = parentBottomY + (childTopY - parentBottomY) / 2;
 
       // Calcular el centro exacto del nodo padre (para el tronco)
       const parentCenterX = getSourceCenterX(sourceNodeId);
@@ -288,7 +299,8 @@ export const FamilyTree: React.FC = () => {
             barY, 
             allDrops,
             parentCenterX,
-            isFirst: index === 0 
+            isFirst: index === 0,
+            isRustic: isRusticVisual
           },
         });
       });
@@ -523,20 +535,56 @@ export const FamilyTree: React.FC = () => {
 
       if (sourceNode) {
         const groupKey = `${sourceNode.id}-desc-${depth}-${Math.round(childY)}`;
+        addRusticBranchGroup(sourceNode.id, groupKey, pendingConnections);
+      }
+    };
 
-        if (isRusticVisual) {
-          addRusticBranchGroup(sourceNode.id, groupKey, pendingConnections);
-        } else {
-          pendingConnections.forEach(c => {
-            flowEdges.push({
-              id: `edge-${sourceNode.id}-to-${c.personId}`,
-              source: sourceNode.id,
-              target: c.targetNodeId,
-              targetHandle: c.targetHandle,
-              type: edgeType,
-            });
-          });
-        }
+    // Renderizar primos como lista compacta (modo compacto)
+    // Agrupa todos los hijos de unos padres en un solo nodo SiblingListNode
+    const renderCousinsCompact = (parentIds: string[], centerX: number, baseY: number) => {
+      const childrenSet = new Set<string>();
+      parentIds.forEach(pId => {
+        const p = familyById.get(pId);
+        p?.children?.forEach((cId: string) => {
+          if (!visited.has(cId)) childrenSet.add(cId);
+        });
+      });
+
+      const children = Array.from(childrenSet).map(id => familyById.get(id)).filter(Boolean)
+        .sort((a, b) => (a.birthDate || '').localeCompare(b.birthDate || '') || a.id.localeCompare(b.id));
+
+      if (children.length === 0) return;
+
+      // Marcar todos los hijos como visitados
+      children.forEach(child => visited.add(child.id));
+
+      // Crear un nodo SiblingListNode con todos los primos
+      const listNodeId = `sibling-list-${parentIds.join('-')}`;
+      const childY = baseY + VERTICAL_SPACING;
+      // Ancho fijo más pequeño para las listas de hijos
+      const listWidth = SIBLING_LIST_WIDTH;
+
+      flowNodes.push({
+        id: listNodeId,
+        type: 'siblingList',
+        position: { x: centerX - listWidth / 2, y: childY },
+        data: { siblings: children, width: listWidth },
+      });
+      nodePositions.set(listNodeId, { x: centerX - listWidth / 2, y: childY });
+
+      // Buscar nodo padre para conectar
+      const parentCoupleNode = flowNodes.find(n =>
+        n.type === 'couple' && parentIds.some(pId =>
+          (n.data as any).person1?.id === pId || (n.data as any).person2?.id === pId
+        )
+      );
+      const parentSingleNode = flowNodes.find(n => parentIds.includes(n.id) && n.type === 'person');
+      const sourceNode = parentCoupleNode || parentSingleNode;
+
+      if (sourceNode) {
+        const groupKey = `${sourceNode.id}-cousins-compact`;
+        const pendingConnections = [{ personId: listNodeId, targetNodeId: listNodeId }];
+        addRusticBranchGroup(sourceNode.id, groupKey, pendingConnections);
       }
     };
 
@@ -649,19 +697,7 @@ export const FamilyTree: React.FC = () => {
           });
 
           const groupKey = `${coupleId}-anc-${depth}-${Math.round(baseY)}`;
-          if (isRusticVisual) {
-            addRusticBranchGroup(coupleId, groupKey, pendingConnections);
-          } else {
-            pendingConnections.forEach(c => {
-              flowEdges.push({
-                id: `edge-${coupleId}-to-${c.personId}`,
-                source: coupleId,
-                target: c.targetNodeId,
-                targetHandle: c.targetHandle,
-                type: edgeType,
-              });
-            });
-          }
+          addRusticBranchGroup(coupleId, groupKey, pendingConnections);
         }
 
         // --- TÍOS (Hermanos de los padres) ---
@@ -719,7 +755,10 @@ export const FamilyTree: React.FC = () => {
           
           if (sibPartner) {
             // Tío con pareja política - renderizar como CoupleNode
-            const sibDescWidth = Math.max(COUPLE_WIDTH, calcDescendantsWidth([sib.id, sibPartner.id], sibEstVisited));
+            // En modo compacto, los primos van en caja compacta, así que el ancho es menor
+            const sibDescWidth = compactMode 
+              ? COUPLE_WIDTH 
+              : Math.max(COUPLE_WIDTH, calcDescendantsWidth([sib.id, sibPartner.id], sibEstVisited));
             const sibWidth = Math.max(COUPLE_WIDTH, sibDescWidth);
             const sibCenterX = leftBoundaryX - sibWidth / 2;
             const nodeX = sibCenterX - COUPLE_WIDTH / 2;
@@ -737,13 +776,22 @@ export const FamilyTree: React.FC = () => {
               data: { person1: uncle1, person2: uncle2 },
             });
             nodePositions.set(coupleId, { x: nodeX, y: parentY });
-            renderDescendants([sib.id, sibPartner.id], sibCenterX, parentY, 1);
+            
+            // En modo compacto: primos en lista; en normal: nodos individuales
+            if (compactMode) {
+              renderCousinsCompact([sib.id, sibPartner.id], sibCenterX, parentY);
+            } else {
+              renderDescendants([sib.id, sibPartner.id], sibCenterX, parentY, 1);
+            }
 
             p1GroupLeft = Math.min(p1GroupLeft, nodeX);
             leftBoundaryX -= sibWidth + COUSIN_GAP;
           } else {
             // Tío soltero - renderizar como nodo individual
-            const sibDescWidth = Math.max(SINGLE_WIDTH, calcDescendantsWidth([sib.id], sibEstVisited));
+            // En modo compacto, los primos van en caja compacta
+            const sibDescWidth = compactMode 
+              ? SINGLE_WIDTH 
+              : Math.max(SINGLE_WIDTH, calcDescendantsWidth([sib.id], sibEstVisited));
             const sibWidth = Math.max(SINGLE_WIDTH, sibDescWidth);
             const sibCenterX = leftBoundaryX - sibWidth / 2;
             const nodeX = sibCenterX - SINGLE_WIDTH / 2;
@@ -751,7 +799,13 @@ export const FamilyTree: React.FC = () => {
             visited.add(sib.id);
             flowNodes.push({ id: sib.id, type: 'person', position: { x: nodeX, y: parentY }, data: sib });
             nodePositions.set(sib.id, { x: nodeX, y: parentY });
-            renderDescendants([sib.id], sibCenterX, parentY, 1);
+            
+            // En modo compacto: primos en lista; en normal: nodos individuales
+            if (compactMode) {
+              renderCousinsCompact([sib.id], sibCenterX, parentY);
+            } else {
+              renderDescendants([sib.id], sibCenterX, parentY, 1);
+            }
 
             p1GroupLeft = Math.min(p1GroupLeft, nodeX);
             leftBoundaryX -= sibWidth + COUSIN_GAP;
@@ -781,7 +835,10 @@ export const FamilyTree: React.FC = () => {
           
           if (sibPartner) {
             // Tío con pareja política - renderizar como CoupleNode
-            const sibDescWidth = Math.max(COUPLE_WIDTH, calcDescendantsWidth([sib.id, sibPartner.id], sibEstVisited));
+            // En modo compacto, los primos van en caja compacta, así que el ancho es menor
+            const sibDescWidth = compactMode 
+              ? COUPLE_WIDTH 
+              : Math.max(COUPLE_WIDTH, calcDescendantsWidth([sib.id, sibPartner.id], sibEstVisited));
             const sibWidth = Math.max(COUPLE_WIDTH, sibDescWidth);
             const sibCenterX = rightBoundaryX + sibWidth / 2;
             const nodeX = sibCenterX - COUPLE_WIDTH / 2;
@@ -799,13 +856,22 @@ export const FamilyTree: React.FC = () => {
               data: { person1: uncle1, person2: uncle2 },
             });
             nodePositions.set(coupleId, { x: nodeX, y: parentY });
-            renderDescendants([sib.id, sibPartner.id], sibCenterX, parentY, 1);
+            
+            // En modo compacto: primos en lista; en normal: nodos individuales
+            if (compactMode) {
+              renderCousinsCompact([sib.id, sibPartner.id], sibCenterX, parentY);
+            } else {
+              renderDescendants([sib.id, sibPartner.id], sibCenterX, parentY, 1);
+            }
 
             p2GroupRight = Math.max(p2GroupRight, nodeX + COUPLE_WIDTH);
             rightBoundaryX += sibWidth + COUSIN_GAP;
           } else {
             // Tío soltero - renderizar como nodo individual
-            const sibDescWidth = Math.max(SINGLE_WIDTH, calcDescendantsWidth([sib.id], sibEstVisited));
+            // En modo compacto, los primos van en caja compacta
+            const sibDescWidth = compactMode 
+              ? SINGLE_WIDTH 
+              : Math.max(SINGLE_WIDTH, calcDescendantsWidth([sib.id], sibEstVisited));
             const sibWidth = Math.max(SINGLE_WIDTH, sibDescWidth);
             const sibCenterX = rightBoundaryX + sibWidth / 2;
             const nodeX = sibCenterX - SINGLE_WIDTH / 2;
@@ -813,7 +879,13 @@ export const FamilyTree: React.FC = () => {
             visited.add(sib.id);
             flowNodes.push({ id: sib.id, type: 'person', position: { x: nodeX, y: parentY }, data: sib });
             nodePositions.set(sib.id, { x: nodeX, y: parentY });
-            renderDescendants([sib.id], sibCenterX, parentY, 1);
+            
+            // En modo compacto: primos en lista; en normal: nodos individuales
+            if (compactMode) {
+              renderCousinsCompact([sib.id], sibCenterX, parentY);
+            } else {
+              renderDescendants([sib.id], sibCenterX, parentY, 1);
+            }
 
             p2GroupRight = Math.max(p2GroupRight, nodeX + SINGLE_WIDTH);
             rightBoundaryX += sibWidth + COUSIN_GAP;
@@ -842,37 +914,19 @@ export const FamilyTree: React.FC = () => {
         flowNodes.push({ id: p1.id, type: 'person', position: { x: parentsNodeX, y: parentY }, data: p1 });
         nodePositions.set(p1.id, { x: parentsNodeX, y: parentY });
 
-        if (isRusticVisual) {
-          const pendingConnections: Array<{ personId: string; targetNodeId: string; targetHandle?: string }> = [];
-          childrenNodes.forEach(child => {
-            const childNode = flowNodes.find(n =>
-              n.id === child.id ||
-              (n.type === 'couple' && ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id))
-            );
-            if (!childNode) return;
-            const targetHandle = childNode.type === 'couple' ? `top-${child.id}` : undefined;
-            pendingConnections.push({ personId: child.id, targetNodeId: childNode.id, targetHandle });
-          });
+        const pendingConnections: Array<{ personId: string; targetNodeId: string; targetHandle?: string }> = [];
+        childrenNodes.forEach(child => {
+          const childNode = flowNodes.find(n =>
+            n.id === child.id ||
+            (n.type === 'couple' && ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id))
+          );
+          if (!childNode) return;
+          const targetHandle = childNode.type === 'couple' ? `top-${child.id}` : undefined;
+          pendingConnections.push({ personId: child.id, targetNodeId: childNode.id, targetHandle });
+        });
 
-          const groupKey = `${p1.id}-anc-${depth}-${Math.round(baseY)}`;
-          addRusticBranchGroup(p1.id, groupKey, pendingConnections);
-        } else {
-          childrenNodes.forEach(child => {
-            const childNode = flowNodes.find(n =>
-              n.id === child.id ||
-              (n.type === 'couple' && ((n.data as any).person1?.id === child.id || (n.data as any).person2?.id === child.id))
-            );
-            if (!childNode) return;
-            const targetHandle = childNode.type === 'couple' ? `top-${child.id}` : undefined;
-            flowEdges.push({
-              id: `edge-${p1.id}-to-${child.id}`,
-              source: p1.id,
-              target: childNode.id,
-              targetHandle,
-              type: edgeType,
-            });
-          });
-        }
+        const groupKey = `${p1.id}-anc-${depth}-${Math.round(baseY)}`;
+        addRusticBranchGroup(p1.id, groupKey, pendingConnections);
 
         renderAncestors([p1], parentsCenterX, parentY, depth + 1);
       }
@@ -898,7 +952,10 @@ export const FamilyTree: React.FC = () => {
       });
       nodePositions.set(focusCoupleId, { x: -COUPLE_WIDTH / 2, y: centerY });
 
-      renderDescendants([p1.id, p2.id], 0, centerY);
+      // En modo compacto: NO renderizar descendientes del foco
+      if (!compactMode) {
+        renderDescendants([p1.id, p2.id], 0, centerY);
+      }
       
       // Calcular el extremo izquierdo de los descendientes del foco para no solaparlos
       let focusDescendantsLeftMost = -COUPLE_WIDTH / 2;
@@ -910,66 +967,75 @@ export const FamilyTree: React.FC = () => {
       });
 
       // Solo mostrar hermanos del foco, NO hermanos del cónyuge
+      // En modo compacto: SÍ mostrar hermanos del foco (se renderizan como lista compacta)
       const focusSiblings = getSiblings(focusId).filter(s => !visited.has(s.id));
 
       // IZQUIERDA: Hermanos del foco + ancestros del foco
       // Posicionar dejando espacio para los descendientes del foco
       let leftX = focusDescendantsLeftMost - COUSIN_GAP;
 
-      // Hermanos del foco: siempre en modo normal (cajas individuales con parejas)
+      // Hermanos del foco SIEMPRE como cajas individuales (tanto en modo compacto como normal)
       focusSiblings.forEach(sib => {
-        visited.add(sib.id);
+          visited.add(sib.id);
 
-        // Verificar si el hermano tiene pareja
-        const sibPartnerId = sib.partners?.[0];
-        const sibPartner = sibPartnerId ? familyById.get(sibPartnerId) : null;
+          // Verificar si el hermano tiene pareja
+          const sibPartnerId = sib.partners?.[0];
+          const sibPartner = sibPartnerId ? familyById.get(sibPartnerId) : null;
 
-        if (sibPartner && !visited.has(sibPartner.id)) {
-          // Renderizar como CoupleNode
-          visited.add(sibPartner.id);
+          if (sibPartner && !visited.has(sibPartner.id)) {
+            // Renderizar como CoupleNode
+            visited.add(sibPartner.id);
 
-          const estimationVisited = new Set(visited);
-          estimationVisited.delete(sib.id);
-          estimationVisited.delete(sibPartner.id);
-          const descendantsWidth = calcDescendantsWidth([sib.id, sibPartner.id], estimationVisited);
-          // Usar el máximo entre el ancho del nodo y los descendientes para mantener espaciado uniforme
-          const sibWidth = Math.max(COUPLE_WIDTH, descendantsWidth);
+            const estimationVisited = new Set(visited);
+            estimationVisited.delete(sib.id);
+            estimationVisited.delete(sibPartner.id);
+            const descendantsWidth = calcDescendantsWidth([sib.id, sibPartner.id], estimationVisited);
+            // Usar el máximo entre el ancho del nodo y los descendientes para mantener espaciado uniforme
+            const sibWidth = Math.max(COUPLE_WIDTH, descendantsWidth);
 
-          const sibCenterX = leftX - sibWidth / 2;
+            const sibCenterX = leftX - sibWidth / 2;
 
-          // Ordenar por género: hombre a la izquierda
-          const [sp1, sp2] = sib.gender === 'Male' ? [sib, sibPartner] : [sibPartner, sib];
-          const coupleId = `couple-${sp1.id}-${sp2.id}`;
-          const nodeX = sibCenterX - COUPLE_WIDTH / 2;
+            // Ordenar por género: hombre a la izquierda
+            const [sp1, sp2] = sib.gender === 'Male' ? [sib, sibPartner] : [sibPartner, sib];
+            const coupleId = `couple-${sp1.id}-${sp2.id}`;
+            const nodeX = sibCenterX - COUPLE_WIDTH / 2;
 
-          flowNodes.push({
-            id: coupleId,
-            type: 'couple',
-            position: { x: nodeX, y: centerY },
-            data: { person1: sp1, person2: sp2 },
-          });
-          nodePositions.set(coupleId, { x: nodeX, y: centerY });
-          renderDescendants([sp1.id, sp2.id], sibCenterX, centerY);
+            flowNodes.push({
+              id: coupleId,
+              type: 'couple',
+              position: { x: nodeX, y: centerY },
+              data: { person1: sp1, person2: sp2 },
+            });
+            nodePositions.set(coupleId, { x: nodeX, y: centerY });
+            
+            // En modo compacto NO renderizar descendientes de hermanos del foco
+            if (!compactMode) {
+              renderDescendants([sp1.id, sp2.id], sibCenterX, centerY);
+            }
 
-          leftX -= sibWidth + COUSIN_GAP;
-        } else {
-          const estimationVisited = new Set(visited);
-          estimationVisited.delete(sib.id);
-          const descendantsWidth = calcDescendantsWidth([sib.id], estimationVisited);
-          // Usar el máximo entre el ancho del nodo y los descendientes para mantener espaciado uniforme
-          const sibWidth = Math.max(SINGLE_WIDTH, descendantsWidth);
+            leftX -= sibWidth + COUSIN_GAP;
+          } else {
+            const estimationVisited = new Set(visited);
+            estimationVisited.delete(sib.id);
+            const descendantsWidth = calcDescendantsWidth([sib.id], estimationVisited);
+            // Usar el máximo entre el ancho del nodo y los descendientes para mantener espaciado uniforme
+            const sibWidth = Math.max(SINGLE_WIDTH, descendantsWidth);
 
-          const sibCenterX = leftX - sibWidth / 2;
-          const nodeX = sibCenterX - SINGLE_WIDTH / 2;
+            const sibCenterX = leftX - sibWidth / 2;
+            const nodeX = sibCenterX - SINGLE_WIDTH / 2;
 
-          flowNodes.push({
-            id: sib.id,
-            type: 'person',
-            position: { x: nodeX, y: centerY },
-            data: sib,
-          });
-          nodePositions.set(sib.id, { x: nodeX, y: centerY });
-          renderDescendants([sib.id], sibCenterX, centerY);
+            flowNodes.push({
+              id: sib.id,
+              type: 'person',
+              position: { x: nodeX, y: centerY },
+              data: sib,
+            });
+            nodePositions.set(sib.id, { x: nodeX, y: centerY });
+            
+            // En modo compacto NO renderizar descendientes de hermanos del foco
+            if (!compactMode) {
+              renderDescendants([sib.id], sibCenterX, centerY);
+            }
 
           leftX -= sibWidth + COUSIN_GAP;
         }
@@ -1006,7 +1072,10 @@ export const FamilyTree: React.FC = () => {
       });
       nodePositions.set(focusId, { x: -SINGLE_WIDTH / 2, y: centerY });
 
-      renderDescendants([focusId], 0, centerY);
+      // En modo compacto: NO renderizar descendientes del foco
+      if (!compactMode) {
+        renderDescendants([focusId], 0, centerY);
+      }
 
       // Calcular el extremo izquierdo de los descendientes del foco
       let focusDescendantsLeftMost = -SINGLE_WIDTH / 2;
@@ -1017,14 +1086,15 @@ export const FamilyTree: React.FC = () => {
         }
       });
 
+      // En modo compacto: SÍ mostrar hermanos del foco
       const siblings = getSiblings(focusId).filter(s => !visited.has(s.id));
       
       // Posicionar hermanos al lado izquierdo, dejando espacio para descendientes del foco
       let leftX = focusDescendantsLeftMost - COUSIN_GAP;
 
-      // Hermanos del foco: siempre en modo normal (cajas individuales con parejas)
+      // Hermanos del foco SIEMPRE como cajas individuales (tanto en modo compacto como normal)
       siblings.forEach(sib => {
-        visited.add(sib.id);
+          visited.add(sib.id);
 
           // Verificar si el hermano tiene pareja
           const sibPartnerId = sib.partners?.[0];
@@ -1054,7 +1124,11 @@ export const FamilyTree: React.FC = () => {
               data: { person1: sp1, person2: sp2 },
             });
             nodePositions.set(coupleId, { x: nodeX, y: centerY });
-            renderDescendants([sp1.id, sp2.id], sibCenterX, centerY);
+            
+            // En modo compacto NO renderizar descendientes de hermanos del foco
+            if (!compactMode) {
+              renderDescendants([sp1.id, sp2.id], sibCenterX, centerY);
+            }
 
             leftX -= sibWidth + COUSIN_GAP;
           } else {
@@ -1073,10 +1147,14 @@ export const FamilyTree: React.FC = () => {
               data: sib,
             });
             nodePositions.set(sib.id, { x: nodeX, y: centerY });
+            
+            // En modo compacto NO renderizar descendientes de hermanos del foco
+            if (!compactMode) {
+              renderDescendants([sib.id], sibCenterX, centerY);
+            }
 
-            renderDescendants([sib.id], sibCenterX, centerY);
-            leftX -= sibWidth + COUSIN_GAP;
-          }
+          leftX -= sibWidth + COUSIN_GAP;
+        }
       });
 
       // Calculamos el centro REAL del grupo basado en nodos renderizados
@@ -1096,7 +1174,7 @@ export const FamilyTree: React.FC = () => {
     }
 
     return { nodes: flowNodes, edges: flowEdges };
-  }, [familyNodes, viewRootId, isMobile, focusId, visualTheme]);
+  }, [familyNodes, viewRootId, isMobile, focusId, visualTheme, compactMode]);
 
   return (
     <div style={{ background: 'var(--app-bg)' }} className="w-full h-screen relative touch-none">

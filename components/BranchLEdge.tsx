@@ -17,10 +17,14 @@ export const BranchLEdge: React.FC<EdgeProps> = ({
   targetY,
   data
 }) => {
-  const inkColor = 'var(--rustic-ink, #2c1810)';
-  const paperColor = 'var(--rustic-parchment, #f4e4bc)';
-  const outerWidth = 4;
-  const innerWidth = 2;
+  // Detectar si es tema rústico o moderno
+  const isRustic = (data?.isRustic as boolean) ?? true;
+  
+  // Colores según tema
+  const inkColor = isRustic ? 'var(--rustic-ink, #2c1810)' : '#64748b';
+  const paperColor = isRustic ? 'var(--rustic-parchment, #f4e4bc)' : 'transparent';
+  const outerWidth = isRustic ? 4 : 3;
+  const innerWidth = isRustic ? 2 : 0;
 
   // barY viene en data
   const barY = (data?.barY as number) ?? (sourceY + targetY) / 2;
@@ -85,20 +89,22 @@ export const BranchLEdge: React.FC<EdgeProps> = ({
         fill="none"
         stroke={inkColor}
         strokeWidth={outerWidth}
-        strokeLinecap="square"
-        strokeLinejoin="miter"
+        strokeLinecap={isRustic ? "square" : "round"}
+        strokeLinejoin={isRustic ? "miter" : "round"}
         shapeRendering="geometricPrecision"
       />
-      {/* Trazo interior (fino) - color papel = efecto doble línea */}
-      <path
-        d={pathD}
-        fill="none"
-        stroke={paperColor}
-        strokeWidth={innerWidth}
-        strokeLinecap="square"
-        strokeLinejoin="miter"
-        shapeRendering="geometricPrecision"
-      />
+      {/* Trazo interior (fino) - solo para rústico */}
+      {isRustic && innerWidth > 0 && (
+        <path
+          d={pathD}
+          fill="none"
+          stroke={paperColor}
+          strokeWidth={innerWidth}
+          strokeLinecap="square"
+          strokeLinejoin="miter"
+          shapeRendering="geometricPrecision"
+        />
+      )}
       {/* Path invisible para interacción */}
       <path
         id={id}

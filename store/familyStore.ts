@@ -31,6 +31,8 @@ interface FamilyState {
   visualTheme: VisualTheme;
   // Capitalización de texto
   textCase: TextCase;
+  // Modo compacto (vista ancestral sin descendientes)
+  compactMode: boolean;
   isModalOpen: boolean;
   modalContext: RelationContext;
   editingPerson: Person | null;
@@ -60,6 +62,7 @@ interface FamilyState {
   toggleTheme: () => void;
   setVisualTheme: (visualTheme: VisualTheme) => void;
   setTextCase: (textCase: TextCase) => void;
+  setCompactMode: (compactMode: boolean) => void;
   openAddModal: (context: RelationContext) => void;
   openEditModal: (person: Person) => void;
   closeAddModal: () => void;
@@ -105,6 +108,13 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       return 'uppercase';
     } catch {
       return 'uppercase';
+    }
+  })(),
+  compactMode: (() => {
+    try {
+      return window.localStorage.getItem('agc_compact_mode') === 'true';
+    } catch {
+      return false;
     }
   })(),
   isModalOpen: false,
@@ -341,6 +351,15 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       // ignore
     }
     set({ textCase });
+  },
+
+  setCompactMode: (compactMode) => {
+    try {
+      window.localStorage.setItem('agc_compact_mode', String(compactMode));
+    } catch {
+      // ignore
+    }
+    set({ compactMode });
   },
 
   openAddModal: (context) => set({ isModalOpen: true, modalContext: context, editingPerson: null }),

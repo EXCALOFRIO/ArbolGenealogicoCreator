@@ -84,7 +84,7 @@ const ExpandedIcon = () => (
 );
 
 export const SettingsMenu: React.FC = () => {
-  const { theme, toggleTheme, visualTheme, setVisualTheme, textCase, setTextCase, people, exportRelationships, importRelationships, setIsExporting } = useFamilyStore();
+  const { theme, toggleTheme, visualTheme, setVisualTheme, textCase, setTextCase, compactMode, setCompactMode, people, exportRelationships, importRelationships, setIsExporting } = useFamilyStore();
   const [isOpen, setIsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -157,6 +157,14 @@ export const SettingsMenu: React.FC = () => {
       onClick: () => setTextCase(textCase === 'uppercase' ? 'capitalize' : 'uppercase'),
       color: 'from-purple-500 to-violet-600',
       show: true,
+    },
+    {
+      id: 'compactMode',
+      label: compactMode ? 'Vista Completa' : 'Vista Compacta',
+      icon: compactMode ? <ExpandedIcon /> : <CompactIcon />,
+      onClick: () => setCompactMode(!compactMode),
+      color: compactMode ? 'from-teal-500 to-emerald-600' : 'from-indigo-500 to-purple-600',
+      show: hasPeople,
     },
     {
       id: 'photo',
