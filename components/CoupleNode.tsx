@@ -315,8 +315,8 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
   }
 
   // ============ TEMA MODERNO (ORIGINAL) ============
-  // Versión compacta para móvil
-  if (isMobile) {
+  // Versión compacta para móvil o modo compacto
+  if (isMobile || compactMode) {
     return (
       <div
         style={{
@@ -325,7 +325,7 @@ export const CoupleNode = memo(({ data }: { data: CoupleNodeData }) => {
           boxShadow: hasAnyFocus ? '0 0 20px rgba(104, 144, 156, 0.3)' : undefined
         }}
         className={`
-          relative flex w-[160px] h-[100px] items-center gap-0 rounded-xl p-0.5 border
+          relative flex w-[150px] h-[100px] items-center gap-0 rounded-xl p-0.5 border
           transition-all duration-300 ease-out
           ${hasAnyFocus ? 'ring-2' : 'hover:shadow-md'}
           backdrop-blur-xl
