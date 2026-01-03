@@ -9,6 +9,19 @@ export const Controls: React.FC = () => {
   const { people, focusId, getPerson, setFocusId, viewMode, setViewMode, isModalOpen, modalContext, closeAddModal, addRelative, linkSiblings, editingPerson, updatePerson } = useFamilyStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  
+  // Detectar landscape en móvil
+  const [isLandscape, setIsLandscape] = useState(
+    typeof window !== 'undefined' ? window.innerWidth > window.innerHeight && window.innerHeight < 500 : false
+  );
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight && window.innerHeight < 500);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Form State
   const [newName, setNewName] = useState('');
@@ -302,8 +315,8 @@ export const Controls: React.FC = () => {
     <>
       {/* Top Bar: Search */}
       {people.length > 0 && (
-        <div className="fixed top-0 left-0 right-0 p-1.5 sm:p-4 z-50 flex justify-center pointer-events-none">
-          <div className="relative pointer-events-auto w-full max-w-[200px] sm:max-w-md mr-10 sm:mr-0">
+        <div className={`fixed top-0 left-0 right-0 ${isLandscape ? 'p-1' : 'p-1.5 sm:p-4'} z-50 flex justify-center pointer-events-none`}>
+          <div className={`relative pointer-events-auto w-full max-w-[200px] sm:max-w-md mr-10 sm:mr-0`}>
             <div
               style={{
                 background: 'var(--card-bg)',
@@ -311,27 +324,28 @@ export const Controls: React.FC = () => {
               }}
               className={`
           flex items-center 
-          backdrop-blur-xl rounded-lg sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-3 border
+          backdrop-blur-xl ${isLandscape ? 'rounded-lg px-2 py-1.5' : 'rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2 sm:py-3'} border
           shadow-lg
           transition-all duration-300 ease-out
           ${isSearchFocused ? 'ring-2' : 'hover:opacity-95'}
         `}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
                 style={{ color: isSearchFocused ? 'var(--accent-highlight)' : 'var(--app-text-subtle)' }}
-                className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-3 flex-shrink-0 transition-colors">
+                className={`${isLandscape ? 'w-3 h-3 mr-1.5' : 'w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-3'} flex-shrink-0 transition-colors`}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
               </svg>
               <input
                 type="text"
                 placeholder="Buscar en el linaje..."
                 style={{ color: 'var(--app-text)' }}
-                className="bg-transparent w-full focus:outline-none text-xs sm:text-sm placeholder-opacity-60"
+                className={`bg-transparent w-full focus:outline-none ${isLandscape ? 'text-xs' : 'text-xs sm:text-sm'} placeholder-opacity-60`}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value.toUpperCase())}
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
               />
 
+              {!isLandscape && (
               <button
                 type="button"
                 title={viewMode === 'tree' ? 'Cambiar a vista lista' : 'Cambiar a vista mapa'}
@@ -349,6 +363,7 @@ export const Controls: React.FC = () => {
                   </svg>
                 )}
               </button>
+              )}
 
               {searchTerm && (
                 <button

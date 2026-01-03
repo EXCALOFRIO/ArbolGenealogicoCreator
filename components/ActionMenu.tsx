@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFamilyStore } from '../store/familyStore';
 import { RelationContext } from '../types';
@@ -108,6 +108,19 @@ export const ActionMenu: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const person = getPerson(focusId);
+  
+  // Detectar landscape en móvil
+  const [isLandscape, setIsLandscape] = useState(
+    typeof window !== 'undefined' ? window.innerWidth > window.innerHeight && window.innerHeight < 500 : false
+  );
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight && window.innerHeight < 500);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const onImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -268,7 +281,7 @@ export const ActionMenu: React.FC = () => {
       />
 
       {/* Mobile: Bottom Mini Bar */}
-      <div className="sm:hidden fixed bottom-2 left-1/2 -translate-x-1/2 z-50">
+      <div className={`sm:hidden fixed ${isLandscape ? 'bottom-0.5 right-1' : 'bottom-2 left-1/2 -translate-x-1/2'} z-50`}>
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -276,16 +289,18 @@ export const ActionMenu: React.FC = () => {
             background: 'var(--menu-bg)',
             borderColor: 'var(--menu-border)'
           }}
-          className="backdrop-blur-xl border rounded-2xl px-2 py-1.5 shadow-xl flex flex-col items-center gap-1"
+          className={`backdrop-blur-xl border ${isLandscape ? 'rounded-lg px-1 py-0.5' : 'rounded-xl px-2 py-1.5'} shadow-xl flex items-center ${isLandscape ? 'gap-0.5' : 'gap-1'}`}
         >
-          {/* Nombre de persona seleccionada */}
-          <div 
-            style={{ color: 'var(--app-text)' }} 
-            className="text-[9px] font-semibold truncate max-w-[200px] px-1"
-          >
-            {person.name} {person.surnames?.split(' ')[0]}
-          </div>
-          <div className="flex items-center gap-1">
+          {/* Nombre de persona seleccionada - solo en vertical */}
+          {!isLandscape && (
+            <div 
+              style={{ color: 'var(--app-text)' }} 
+              className="text-[8px] font-semibold truncate max-w-[50px] px-0.5"
+            >
+              {person.name?.substring(0, 6)}
+            </div>
+          )}
+          
           {/* Add Actions */}
           {addActions.map(action => (
             <button
@@ -294,14 +309,14 @@ export const ActionMenu: React.FC = () => {
               className="active:scale-[0.9] transition-transform"
               title={action.label}
             >
-              <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-sm`}>
-                {action.icon}
+              <div className={`${isLandscape ? 'w-5 h-5 rounded' : 'w-9 h-9 rounded-xl'} bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-sm`}>
+                <span className={isLandscape ? 'scale-50' : ''}>{action.icon}</span>
               </div>
             </button>
           ))}
 
           {/* Divider */}
-          <div className="w-px h-7 mx-0.5" style={{ background: 'var(--menu-border)' }} />
+          <div className={`w-px ${isLandscape ? 'h-4' : 'h-7'} mx-0.5`} style={{ background: 'var(--menu-border)' }} />
 
           {/* Manage Actions */}
           {manageActions.map(action => (
@@ -311,17 +326,16 @@ export const ActionMenu: React.FC = () => {
               className="active:scale-[0.9] transition-transform"
               title={action.label}
             >
-              <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-sm`}>
-                {action.icon}
+              <div className={`${isLandscape ? 'w-5 h-5 rounded' : 'w-9 h-9 rounded-xl'} bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-sm`}>
+                <span className={isLandscape ? 'scale-50' : ''}>{action.icon}</span>
               </div>
             </button>
           ))}
-          </div>
         </motion.div>
       </div>
 
-      {/* Desktop: Bottom Bar */}
-      <div className="hidden sm:block fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-50">
+      {/* Desktop: Bottom Bar - Compact without labels */}
+      <div className="hidden sm:block fixed bottom-3 left-1/2 -translate-x-1/2 z-50">
         <motion.div
           initial={{ y: 30, opacity: 0, scale: 0.95 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -330,62 +344,58 @@ export const ActionMenu: React.FC = () => {
             background: 'var(--menu-bg)',
             borderColor: 'var(--menu-border)'
           }}
-          className="backdrop-blur-xl border rounded-2xl px-3 md:px-5 py-3 md:py-4 shadow-2xl"
+          className="backdrop-blur-xl border rounded-xl px-2 py-2 shadow-2xl"
         >
-          <div className="text-[10px] uppercase tracking-widest font-semibold mb-2 md:mb-3 text-center" style={{ color: 'var(--app-text-muted)' }}>
-            <span style={{ color: 'var(--app-text)' }} className="font-bold">{person.name}</span>
-          </div>
-
-          <div className="flex items-center gap-1 md:gap-2">
+          <div className="flex items-center gap-1">
+            {/* Person name */}
+            <div className="text-[9px] font-semibold px-1 truncate max-w-[60px]" style={{ color: 'var(--app-text)' }}>
+              {person.name}
+            </div>
+            
+            {/* Divider */}
+            <div style={{ background: 'var(--menu-border)' }} className="w-px h-7 mx-1" />
+            
             {/* Add Actions */}
-            <div className="flex gap-1 md:gap-1.5">
+            <div className="flex gap-1">
               {addActions.map((action) => (
                 <motion.button
                   key={action.id}
-                  whileHover={{ scale: 1.08, y: -2 }}
+                  whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleAction(action)}
-                  className="flex flex-col items-center gap-1 group"
+                  title={action.label}
                 >
                   <div className={`
-                            w-9 h-9 md:w-11 md:h-11 rounded-xl bg-gradient-to-br ${action.color}
+                            w-8 h-8 rounded-lg bg-gradient-to-br ${action.color}
                             flex items-center justify-center text-white
-                            shadow-md group-hover:shadow-lg transition-all
-                            ring-1 ring-white/10 group-hover:ring-white/30
+                            shadow-md hover:shadow-lg transition-all
                           `}>
                     {action.icon}
                   </div>
-                  <span style={{ color: 'var(--app-text-muted)' }} className="text-[7px] md:text-[9px] font-medium uppercase transition-colors tracking-wide group-hover:opacity-80">
-                    {action.label}
-                  </span>
                 </motion.button>
               ))}
             </div>
 
             {/* Divider */}
-            <div style={{ background: 'var(--menu-border)' }} className="w-px h-10 md:h-12 mx-1 md:mx-2" />
+            <div style={{ background: 'var(--menu-border)' }} className="w-px h-7 mx-1" />
 
             {/* Manage Actions */}
-            <div className="flex gap-1 md:gap-1.5">
+            <div className="flex gap-1">
               {manageActions.map((action) => (
                 <motion.button
                   key={action.id}
-                  whileHover={{ scale: 1.08, y: -2 }}
+                  whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleAction(action)}
-                  className="flex flex-col items-center gap-1 group"
+                  title={action.label}
                 >
                   <div className={`
-                            w-9 h-9 md:w-11 md:h-11 rounded-xl bg-gradient-to-br ${action.color}
+                            w-8 h-8 rounded-lg bg-gradient-to-br ${action.color}
                             flex items-center justify-center text-white
-                            shadow-md group-hover:shadow-lg transition-all
-                            ring-1 ring-white/10 group-hover:ring-white/30
+                            shadow-md hover:shadow-lg transition-all
                           `}>
                     {action.icon}
                   </div>
-                  <span style={{ color: 'var(--app-text-muted)' }} className="text-[7px] md:text-[9px] font-medium uppercase transition-colors tracking-wide group-hover:opacity-80">
-                    {action.label}
-                  </span>
                 </motion.button>
               ))}
             </div>

@@ -78,9 +78,18 @@ export const FamilyTree: React.FC = () => {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 640 : false
   );
+  
+  // Detectar landscape en móvil (pantalla rotada)
+  const [isLandscape, setIsLandscape] = useState(
+    typeof window !== 'undefined' ? window.innerWidth > window.innerHeight && window.innerHeight < 500 : false
+  );
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+      // Landscape en móvil: ancho > alto y altura pequeña (menos de 500px)
+      setIsLandscape(window.innerWidth > window.innerHeight && window.innerHeight < 500);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -133,11 +142,13 @@ export const FamilyTree: React.FC = () => {
             }
 
             // 3. Generar la imagen con calidad máxima para zoom sin pérdida
+            // En móvil usar pixelRatio más alto para compensar pantallas pequeñas
+            const exportPixelRatio = isMobile ? 5 : 5;
             const dataUrl = await toPng(element, {
               backgroundColor: visualTheme === 'rustic' 
                 ? '#b8a67a' // Color base del pergamino
                 : (theme === 'dark' ? '#0e100a' : '#f4f5ef'),
-              pixelRatio: 2, // Calidad máxima para zoom extremo sin pérdida
+              pixelRatio: exportPixelRatio, // Calidad alta para exportación
               filter: (node) => {
                 // Ocultar elementos innecesarios en la foto
                 const exclusionClasses = [
@@ -1232,8 +1243,8 @@ export const FamilyTree: React.FC = () => {
       >
         <FlowContent nodes={nodes} edges={edges} focusId={focusId} />
         <Background color="var(--dot-color)" gap={isMobile ? 30 : 40} size={1} />
-        {/* MiniMap solo en desktop */}
-        {!isMobile && (
+        {/* MiniMap solo en desktop (no móvil ni landscape) */}
+        {!isMobile && !isLandscape && (
           <MiniMap
             position="bottom-right"
             maskColor="transparent"
@@ -1255,8 +1266,8 @@ export const FamilyTree: React.FC = () => {
         )}
       </ReactFlow>
 
-      {/* Botones de zoom/centrar - más pequeños en móvil */}
-      <div className={`absolute ${isMobile ? 'bottom-2 left-2' : 'bottom-4 left-4'} flex flex-col gap-1.5 z-10`}>
+      {/* Botones de zoom/centrar - más pequeños en móvil/landscape */}
+      <div className={`absolute ${isLandscape ? 'bottom-1 left-1' : (isMobile ? 'bottom-2 left-2' : 'bottom-4 left-4')} flex ${isLandscape ? 'flex-row' : 'flex-col'} gap-1 z-10`}>
         <button
           onClick={() => zoomIn()}
           style={{
@@ -1264,10 +1275,10 @@ export const FamilyTree: React.FC = () => {
             borderColor: 'var(--card-border)',
             color: 'var(--app-text)'
           }}
-          className={`${isMobile ? 'p-1.5' : 'p-2.5'} rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80`}
+          className={`${isLandscape ? 'p-1' : (isMobile ? 'p-1.5' : 'p-2.5')} rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80`}
           title="Acercar"
         >
-          <svg className={isMobile ? 'w-4 h-4' : 'w-5 h-5'} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className={isLandscape ? 'w-3 h-3' : (isMobile ? 'w-4 h-4' : 'w-5 h-5')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
           </svg>
         </button>
@@ -1278,10 +1289,10 @@ export const FamilyTree: React.FC = () => {
             borderColor: 'var(--card-border)',
             color: 'var(--app-text)'
           }}
-          className={`${isMobile ? 'p-1.5' : 'p-2.5'} rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80`}
+          className={`${isLandscape ? 'p-1' : (isMobile ? 'p-1.5' : 'p-2.5')} rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80`}
           title="Alejar"
         >
-          <svg className={isMobile ? 'w-4 h-4' : 'w-5 h-5'} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className={isLandscape ? 'w-3 h-3' : (isMobile ? 'w-4 h-4' : 'w-5 h-5')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M18 12H6" />
           </svg>
         </button>
@@ -1292,10 +1303,10 @@ export const FamilyTree: React.FC = () => {
             borderColor: 'var(--card-border)',
             color: 'var(--app-text)'
           }}
-          className={`${isMobile ? 'p-1.5' : 'p-2.5'} rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80`}
+          className={`${isLandscape ? 'p-1' : (isMobile ? 'p-1.5' : 'p-2.5')} rounded-xl backdrop-blur-md border shadow-lg transition-all hover:opacity-80`}
           title="Centrar todo"
         >
-          <svg className={isMobile ? 'w-4 h-4' : 'w-5 h-5'} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className={isLandscape ? 'w-3 h-3' : (isMobile ? 'w-4 h-4' : 'w-5 h-5')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
           </svg>
         </button>

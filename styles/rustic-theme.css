@@ -416,3 +416,37 @@
 .visual-theme-rustic.exporting .react-flow::before {
   display: none;
 }
+
+/* ============ MÓVIL: BORDES SIMPLES PARA GANAR ESPACIO ============ */
+@media (max-width: 640px) {
+  /* Tarjetas de persona - borde simple en lugar de doble */
+  .visual-theme-rustic .rustic-node {
+    border: 2px solid var(--rustic-wood-medium) !important;
+    box-shadow: 
+      2px 3px 6px var(--rustic-shadow) !important;
+    padding: 2px 3px !important;
+  }
+  
+  /* Eliminar el borde interno decorativo en móvil */
+  .visual-theme-rustic .rustic-node::before {
+    display: none !important;
+  }
+  
+  /* Couple nodes - borde simple */
+  .visual-theme-rustic .rustic-couple-node {
+    border: 2px solid var(--rustic-wood-medium) !important;
+    box-shadow: 
+      2px 3px 6px var(--rustic-shadow) !important;
+    padding: 2px 3px !important;
+  }
+  
+  /* Eliminar borde interno en couple nodes */
+  .visual-theme-rustic .rustic-couple-node::before {
+    display: none !important;
+  }
+  
+  /* Reducir espacio de la línea divisoria */
+  .visual-theme-rustic .rustic-divider {
+    margin: 1px 0 !important;
+  }
+}
