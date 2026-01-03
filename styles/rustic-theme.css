@@ -59,7 +59,7 @@
   position: absolute;
   inset: 0;
   /* Imagen del árbol difuminada */
-  background-image: url('/utils/themeImageBackground/background1.png');
+  background-image: url('/background1.png');
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
