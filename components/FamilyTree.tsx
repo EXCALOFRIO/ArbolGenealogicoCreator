@@ -141,14 +141,25 @@ export const FamilyTree: React.FC = () => {
               element.insertBefore(overlayDiv, element.firstChild);
             }
 
-            // 3. Generar la imagen con calidad máxima para zoom sin pérdida
-            // En móvil usar pixelRatio más alto para compensar pantallas pequeñas
-            const exportPixelRatio = isMobile ? 5 : 5;
+            // 3. Generar la imagen con resolución objetivo ~4K (3840px de ancho mínimo)
+            // Calcular pixelRatio dinámico para conseguir buena calidad independiente del dispositivo
+            const elementWidth = element.offsetWidth;
+            const elementHeight = element.offsetHeight;
+            const targetMinWidth = 3840; // 4K width
+            const targetMinHeight = 2160; // 4K height
+            
+            // Calcular el ratio necesario para alcanzar 4K en la dimensión más pequeña
+            const ratioForWidth = targetMinWidth / elementWidth;
+            const ratioForHeight = targetMinHeight / elementHeight;
+            // Usar el mayor de los dos para asegurar al menos 4K, pero limitar a 6 para no saturar memoria
+            const exportPixelRatio = Math.min(6, Math.max(3, Math.ceil(Math.max(ratioForWidth, ratioForHeight))));
+            
             const dataUrl = await toPng(element, {
               backgroundColor: visualTheme === 'rustic' 
                 ? '#b8a67a' // Color base del pergamino
                 : (theme === 'dark' ? '#0e100a' : '#f4f5ef'),
-              pixelRatio: exportPixelRatio, // Calidad alta para exportación
+              pixelRatio: exportPixelRatio, // Calidad dinámica para ~4K
+              quality: 0.95, // Ligera compresión para optimizar tamaño sin perder calidad visible
               filter: (node) => {
                 // Ocultar elementos innecesarios en la foto
                 const exclusionClasses = [
